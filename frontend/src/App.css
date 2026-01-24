@@ -1,34 +1,411 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
+/* App Container - Mobile First */
+.app-container {
+    max-width: 430px;
+    margin: 0 auto;
+    min-height: 100vh;
+    background-color: #F9FAFB;
+    position: relative;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
-}
-
-.App-header {
-    background-color: #0f0f10;
+/* Landing Screen */
+.landing-screen {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    justify-content: center;
+    padding: 2rem 1.5rem;
+}
+
+.landing-tagline {
+    font-family: 'Manrope', sans-serif;
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: #111827;
+    line-height: 1.3;
+    margin-bottom: 4rem;
+}
+
+/* Profile Selector */
+.profile-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.profile-option {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    background: white;
+    border-radius: 1rem;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border: 2px solid transparent;
+}
+
+.profile-option:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.profile-option:active {
+    transform: scale(0.98);
+}
+
+.profile-indicator {
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 0.375rem;
+}
+
+.profile-indicator.personal {
+    background-color: #F97316;
+}
+
+.profile-indicator.work {
+    background-color: #0D9488;
+}
+
+.profile-name {
+    font-family: 'Manrope', sans-serif;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #374151;
+}
+
+/* Tasks Screen */
+.tasks-screen {
+    min-height: 100vh;
+    padding: 1.5rem;
+    padding-bottom: 6rem;
+}
+
+/* Header */
+.tasks-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+}
+
+.profile-title {
+    font-family: 'Manrope', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #9CA3AF;
+}
+
+.settings-btn {
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
     align-items: center;
     justify-content: center;
-    font-size: calc(10px + 2vmin);
+    color: #9CA3AF;
+    cursor: pointer;
+    border-radius: 0.75rem;
+    transition: background-color 0.2s ease;
+}
+
+.settings-btn:hover {
+    background-color: #F3F4F6;
+}
+
+/* Section Styles */
+.task-section {
+    margin-bottom: 1.5rem;
+}
+
+.section-card {
+    background: #F3F4F6;
+    border-radius: 1.25rem;
+    padding: 1.25rem;
+}
+
+.section-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.section-emoji {
+    font-size: 2.5rem;
+    line-height: 1;
+}
+
+.section-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-top: 0.5rem;
+}
+
+.section-title {
+    font-family: 'Manrope', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #111827;
+}
+
+.task-count-badge {
+    background: #000;
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    min-width: 1.5rem;
+    text-align: center;
+}
+
+/* Task Items */
+.task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.task-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: #F9FAFB;
+    padding: 0.875rem 1rem;
+    border-radius: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.task-item:hover {
+    background: #FFFFFF;
+}
+
+.task-checkbox {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 0.5rem;
+    border: 2px solid #D1D5DB;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.task-checkbox.checked {
+    background: #000;
+    border-color: #000;
+}
+
+.task-checkbox svg {
     color: white;
 }
 
-.App-link {
-    color: #61dafb;
+.task-title {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #111827;
+    flex: 1;
 }
 
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+.task-title.completed {
+    color: #9CA3AF;
+    text-decoration: line-through;
+}
+
+/* Completed Section */
+.completed-section {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #E5E7EB;
+}
+
+.completed-section .task-item {
+    background: transparent;
+}
+
+/* Floating Action Button */
+.fab {
+    position: fixed;
+    bottom: 2rem;
+    right: 1.5rem;
+    width: 3.5rem;
+    height: 3.5rem;
+    background: #000;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    z-index: 40;
+}
+
+.fab:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+}
+
+.fab:active {
+    transform: scale(0.95);
+}
+
+/* Bottom Navigation */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 430px;
+    background: white;
+    padding: 1rem 1.5rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid #F3F4F6;
+}
+
+.nav-btn {
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9CA3AF;
+    cursor: pointer;
+    border-radius: 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.nav-btn:hover {
+    background: #F3F4F6;
+    color: #374151;
+}
+
+.nav-btn.active {
+    color: #111827;
+}
+
+/* Add/Edit Drawer */
+.drawer-content {
+    padding: 1.5rem;
+}
+
+.drawer-input {
+    width: 100%;
+    padding: 1rem 1.25rem;
+    background: #F3F4F6;
+    border: none;
+    border-radius: 1rem;
+    font-size: 1rem;
+    font-family: 'Inter', sans-serif;
+    color: #111827;
+    outline: none;
+    margin-bottom: 1rem;
+}
+
+.drawer-input::placeholder {
+    color: #9CA3AF;
+}
+
+.drawer-input:focus {
+    background: #FFFFFF;
+    box-shadow: 0 0 0 2px #000;
+}
+
+.drawer-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.section-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1rem;
+    background: #F3F4F6;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #374151;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.section-pill:hover {
+    background: #E5E7EB;
+}
+
+.section-pill.active {
+    background: #E5E7EB;
+}
+
+.add-btn {
+    padding: 0.625rem 1.25rem;
+    background: #000;
+    color: white;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+    margin-left: auto;
+}
+
+.add-btn:hover {
+    opacity: 0.9;
+}
+
+.add-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Delete button */
+.delete-btn {
+    padding: 0.5rem;
+    color: #EF4444;
+    cursor: pointer;
+    border-radius: 0.5rem;
+    transition: background-color 0.2s ease;
+}
+
+.delete-btn:hover {
+    background: #FEE2E2;
+}
+
+/* Today Screen specific */
+.today-header-dark {
+    background: #4B5563;
+    color: white;
+    padding: 1.5rem;
+    border-radius: 1.25rem 1.25rem 0 0;
+    margin: -1.5rem -1.5rem 0;
+}
+
+.today-header-dark .section-emoji {
+    margin-bottom: 0.5rem;
+}
+
+.today-header-dark .section-title {
+    color: white;
+}
+
+.today-header-dark .task-count-badge {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.add-task-input-dark {
+    background: white;
+    margin: 0 -1.5rem;
+    padding: 1rem 1.5rem;
 }
