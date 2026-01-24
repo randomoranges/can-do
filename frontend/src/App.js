@@ -206,24 +206,26 @@ const AddTaskDrawer = ({ open, onClose, onAdd, currentSection }) => {
 const EditTaskDrawer = ({ open, onClose, task, onUpdate, onDelete }) => {
   const [title, setTitle] = useState("");
   const [section, setSection] = useState("today");
+  const [taskId, setTaskId] = useState(null);
 
   useEffect(() => {
     if (task) {
       setTitle(task.title);
       setSection(task.section);
+      setTaskId(task.id);
     }
   }, [task]);
 
   const handleSave = () => {
-    if (title.trim() && task) {
-      onUpdate(task.id, { title: title.trim(), section });
+    if (title.trim() && taskId) {
+      onUpdate(taskId, { title: title.trim(), section });
       onClose();
     }
   };
 
   const handleDelete = () => {
-    if (task) {
-      onDelete(task.id);
+    if (taskId) {
+      onDelete(taskId);
       onClose();
     }
   };
