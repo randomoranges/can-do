@@ -416,25 +416,29 @@ const SectionScreen = ({
               placeholder={config.placeholder}
               value={newTaskTitle}
               onChange={(e) => setNewTaskTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleAddTask();
-                }
-              }}
               autoFocus
-              rows={2}
+              rows={3}
               data-testid="add-task-input"
             />
-            <p className="add-task-hint">Shift+Enter for new line • Use - for subtasks</p>
-            <button
-              className="add-task-btn"
-              onClick={handleAddTask}
-              disabled={!newTaskTitle.trim()}
-              data-testid="add-task-submit-btn"
-            >
-              add
-            </button>
+            <p className="add-task-hint">Use - at start of line for subtasks</p>
+            <div className="add-drawer-footer">
+              <button
+                className="newline-btn"
+                onClick={() => setNewTaskTitle(prev => prev + '\n- ')}
+                type="button"
+                data-testid="add-subtask-btn"
+              >
+                + subtask
+              </button>
+              <button
+                className="add-task-btn"
+                onClick={handleAddTask}
+                disabled={!newTaskTitle.trim()}
+                data-testid="add-task-submit-btn"
+              >
+                add
+              </button>
+            </div>
           </div>
         </DrawerContent>
       </Drawer>
