@@ -91,14 +91,14 @@ class TodoAPITester:
             return True, response
         return False, {}
 
-    def test_create_later_task(self):
-        """Test creating a task in later section"""
+    def test_create_someday_task(self):
+        """Test creating a task in someday section"""
         task_data = {
-            "title": f"Test Later Task {datetime.now().strftime('%H%M%S')}",
+            "title": f"Test Someday Task {datetime.now().strftime('%H%M%S')}",
             "profile": "personal",
-            "section": "later"
+            "section": "someday"
         }
-        success, response = self.run_test("Create Later Task", "POST", "tasks", 200, data=task_data)
+        success, response = self.run_test("Create Someday Task", "POST", "tasks", 200, data=task_data)
         if success and 'id' in response:
             self.created_task_ids.append(response['id'])
             return True, response
