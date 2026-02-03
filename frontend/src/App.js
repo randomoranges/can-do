@@ -394,14 +394,29 @@ const LoginScreen = ({ onGoogleLogin, onGuestMode, isLoading }) => {
   );
 };
 
+// Format date helper
+const formatDate = () => {
+  const date = new Date();
+  const day = date.getDate();
+  const month = date.toLocaleString('en-US', { month: 'short' }).toLowerCase();
+  const year = date.getFullYear();
+  return `${day} ${month} ${year}`;
+};
+
 // Landing Screen (Profile Selection)
 const LandingScreen = ({ onSelectProfile, userName }) => {
   return (
     <div className="landing-screen" data-testid="landing-screen">
-      <div className="landing-content">
-        {userName && (
+      <div className="landing-header">
+        {userName ? (
           <p className="welcome-text">Welcome back, {userName.split(' ')[0]}!</p>
+        ) : (
+          <p className="welcome-text">Hello there!</p>
         )}
+        <p className="date-text">{formatDate()}</p>
+      </div>
+      
+      <div className="landing-content">
         <p className="landing-tagline">
           One task at a time,
           <br />
