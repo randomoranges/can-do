@@ -5,15 +5,13 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
-    host: '0.0.0.0',
-    allowedHosts: ['.emergentagent.com', '.preview.emergentagent.com', 'localhost'],
-    hmr: {
-      host: 'localhost'
-    }
+    host: true,
+    strictPort: true,
+    allowedHosts: true
   },
   preview: {
     port: 3000,
-    host: '0.0.0.0'
+    host: true
   },
   build: {
     outDir: 'build'
