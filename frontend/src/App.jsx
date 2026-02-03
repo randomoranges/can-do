@@ -693,9 +693,18 @@ const SectionCard = ({ section, taskCount, onClick, theme }) => {
 };
 
 // Profile Screen
-const ProfileScreen = ({ profile, tasks, onBack, onSelectSection, onOpenSettings, theme }) => {
+const ProfileScreen = ({ profile, tasks, onBack, onSelectSection, onOpenSettings, theme, onRandomTheme }) => {
   const profileLabel = profile.charAt(0).toUpperCase() + profile.slice(1);
   const getTaskCount = (section) => tasks.filter((t) => t.section === section && !t.completed).length;
+  const [themeTooltip, setThemeTooltip] = useState(null);
+
+  const handleRandomTheme = () => {
+    const newTheme = onRandomTheme();
+    const themeData = THEMES[newTheme];
+    const caption = themeData.caption || themeData.name;
+    setThemeTooltip(caption);
+    setTimeout(() => setThemeTooltip(null), 3000);
+  };
 
   return (
     <div className="profile-screen" data-testid="profile-screen">
@@ -718,13 +727,24 @@ const ProfileScreen = ({ profile, tasks, onBack, onSelectSection, onOpenSettings
         ))}
       </div>
 
+      {themeTooltip && (
+        <div className="theme-tooltip-bubble" data-testid="theme-tooltip">
+          {themeTooltip}
+        </div>
+      )}
+
       <div className="screen-footer">
         <button className="back-btn" onClick={onBack} data-testid="back-btn">
           <ArrowLeft size={24} strokeWidth={2} />
         </button>
-        <button className="fab" onClick={() => onSelectSection("today")} data-testid="add-task-fab">
-          <img src="/emojis/writing-hand.png" alt="Add task" className="fab-emoji" />
-        </button>
+        <div className="fab-group">
+          <button className="fab" onClick={handleRandomTheme} data-testid="random-theme-btn">
+            <img src="/emojis/dice.png" alt="Random theme" className="fab-emoji" />
+          </button>
+          <button className="fab" onClick={() => onSelectSection("today")} data-testid="add-task-fab">
+            <img src="/emojis/writing-hand.png" alt="Add task" className="fab-emoji" />
+          </button>
+        </div>
       </div>
     </div>
   );
