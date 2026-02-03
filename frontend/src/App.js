@@ -218,23 +218,13 @@ const SectionScreen = ({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Back button header */}
-      <div className="section-back-header">
-        <button 
-          className="section-back-btn"
-          onClick={onBack}
-          data-testid="section-back-btn"
-        >
-          <ArrowLeft size={24} strokeWidth={2} />
-        </button>
-      </div>
-      
       {/* Section Header */}
       <div className="section-header-detail">
         <img 
           src={config.image} 
           alt={config.label} 
           className="section-header-emoji"
+          onClick={onBack}
         />
         <div className="section-header-info">
           <h1 className="section-header-title">{config.label}</h1>
