@@ -480,11 +480,11 @@ const EditTaskDrawer = ({ open, onClose, task, onUpdate, onDelete }) => {
           <DrawerDescription>Modify your task</DrawerDescription>
         </DrawerHeader>
         <div className="edit-drawer-body">
-          <input
-            type="text"
+          <textarea
             className="edit-task-input"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            rows={3}
             data-testid="edit-task-input"
           />
           
