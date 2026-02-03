@@ -415,7 +415,9 @@ const LoginScreen = ({ onGoogleLogin, onGuestMode, isLoading, standaloneMode }) 
         </button>
       </div>
       
-      <p className="login-hint">Guest mode saves tasks locally on this device</p>
+      <p className="login-hint">
+        {standaloneMode ? 'Your tasks are saved locally on this device' : 'Guest mode saves tasks locally on this device'}
+      </p>
     </div>
   );
 };
