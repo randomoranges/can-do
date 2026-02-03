@@ -1,14 +1,23 @@
 import { useState, useEffect, useCallback } from "react";
 import "@/App.css";
-import axios from "axios";
+// import axios from "axios"; // STANDALONE_MODE: Commented out - not needed for localStorage-only mode
 import { Toaster, toast } from "sonner";
 import { Settings, ArrowLeft, Check, Trash2, X, Sun, Moon, Monitor, LogOut, User } from "lucide-react";
 import confetti from "canvas-confetti";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+// ============================================================
+// STANDALONE MODE CONFIGURATION
+// ============================================================
+// Set to `true` for Vercel/static hosting (localStorage only, no backend)
+// Set to `false` to enable full backend + Google Auth features
+const STANDALONE_MODE = true;
+// ============================================================
+
+// Backend configuration (only used when STANDALONE_MODE = false)
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
 const API = `${BACKEND_URL}/api`;
 
-// Google OAuth configuration - Emergent Auth
+// Google OAuth configuration - Emergent Auth (only used when STANDALONE_MODE = false)
 // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
 const EMERGENT_AUTH_URL = "https://auth.emergentagent.com/";
 
