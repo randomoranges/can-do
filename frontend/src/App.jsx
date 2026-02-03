@@ -811,7 +811,7 @@ const EmptyState = ({ section, onAddClick, theme }) => {
 
 // Section Screen
 const SectionScreen = ({ 
-  profile, section, tasks, onBack, onToggleTask, onEditTask, onAddTask, onClearCompleted, theme, onRandomTheme
+  profile, section, tasks, onBack, onToggleTask, onEditTask, onAddTask, onClearCompleted, theme
 }) => {
   const config = getSectionConfig(theme, section);
   const sectionTasks = tasks.filter((t) => t.section === section);
@@ -825,7 +825,6 @@ const SectionScreen = ({
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [hasShownConfetti, setHasShownConfetti] = useState(false);
   const [touchStart, setTouchStart] = useState(null);
-  const [themeTooltip, setThemeTooltip] = useState(null);
   
   useEffect(() => {
     if (allTasksCompleted && !hasShownConfetti && completedTasks.length > 0) {
@@ -854,14 +853,6 @@ const SectionScreen = ({
     }
   };
 
-  const handleRandomTheme = () => {
-    const newTheme = onRandomTheme();
-    const themeData = THEMES[newTheme];
-    const caption = themeData.caption || themeData.name;
-    setThemeTooltip(caption);
-    setTimeout(() => setThemeTooltip(null), 3000);
-  };
-
   return (
     <div 
       className="section-screen" 
@@ -869,12 +860,6 @@ const SectionScreen = ({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {themeTooltip && (
-        <div className="theme-tooltip" data-testid="theme-tooltip">
-          {themeTooltip}
-        </div>
-      )}
-      
       <div className="section-header-detail">
         <img 
           src={config.image} 
@@ -920,14 +905,9 @@ const SectionScreen = ({
             <span className="clear-icon">T̶x̶</span>
           </button>
         </div>
-        <div className="fab-group">
-          <button className="fab-small" onClick={handleRandomTheme} data-testid="random-theme-btn">
-            <img src="/emojis/dice.png" alt="Random theme" className="fab-emoji-small" />
-          </button>
-          <button className="fab" onClick={() => setAddDrawerOpen(true)} data-testid="section-add-fab">
-            <img src="/emojis/writing-hand.png" alt="Add task" className="fab-emoji" />
-          </button>
-        </div>
+        <button className="fab" onClick={() => setAddDrawerOpen(true)} data-testid="section-add-fab">
+          <img src="/emojis/writing-hand.png" alt="Add task" className="fab-emoji" />
+        </button>
       </div>
 
       <BottomSheet open={addDrawerOpen} onClose={() => setAddDrawerOpen(false)}>
