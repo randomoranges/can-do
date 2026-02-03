@@ -1037,14 +1037,16 @@ function App() {
   const fetchTasks = useCallback(async (profile) => {
     if (!profile) return;
     
-    if (authState === 'guest') {
-      // For guest mode, filter from local tasks
+    if (authState === 'guest' || STANDALONE_MODE) {
+      // For guest mode or standalone mode, filter from local tasks
       setTasks(guestTasks.filter(t => t.profile === profile));
       return;
     }
     
+    /* Backend task fetching - uncomment when STANDALONE_MODE = false
     setLoading(true);
     try {
+      const axios = (await import('axios')).default;
       const headers = sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
       const response = await axios.get(`${API}/tasks/${profile}`, { headers });
       setTasks(response.data);
@@ -1054,6 +1056,7 @@ function App() {
     } finally {
       setLoading(false);
     }
+    */
   }, [authState, sessionToken, guestTasks]);
 
   useEffect(() => {
