@@ -3,26 +3,28 @@
     max-width: 430px;
     margin: 0 auto;
     min-height: 100vh;
-    min-height: 100dvh;
+    min-height: -webkit-fill-available;
     background-color: #F5F5F5;
     position: relative;
 }
 
-/* Fix for mobile keyboard pushing content */
-@supports (height: 100dvh) {
-    .app-container {
-        min-height: 100dvh;
-    }
+/* Fix iOS keyboard viewport */
+html {
+    height: -webkit-fill-available;
 }
 
-/* Ensure drawer stays visible when keyboard opens */
-[data-vaul-drawer] {
-    --vaul-drawer-height: auto !important;
+/* Ensure drawer overlay doesn't cause scroll issues */
+[data-vaul-overlay] {
+    position: fixed !important;
+    inset: 0 !important;
 }
 
+/* Force drawer to stay at visual bottom */
 [data-vaul-drawer-content] {
-    max-height: 85vh !important;
-    max-height: 85dvh !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    top: auto !important;
+    transform: none !important;
 }
 
 /* Loading Screen */
