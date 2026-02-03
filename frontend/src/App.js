@@ -959,14 +959,17 @@ function App() {
   };
 
   const handleLogout = async () => {
-    if (authState === 'authenticated' && sessionToken) {
+    if (authState === 'authenticated' && sessionToken && !STANDALONE_MODE) {
+      /* Backend logout - uncomment when STANDALONE_MODE = false
       try {
+        const axios = (await import('axios')).default;
         await axios.post(`${API}/auth/logout`, {}, {
           headers: { Authorization: `Bearer ${sessionToken}` }
         });
       } catch (error) {
         console.error('Logout error:', error);
       }
+      */
     }
     
     // Clear all auth state
