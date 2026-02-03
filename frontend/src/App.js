@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import "@/App.css";
 import axios from "axios";
 import { Toaster, toast } from "sonner";
-import { Settings, Plus, Check, RotateCcw, Trash2, X } from "lucide-react";
+import { Settings, ArrowLeft, Check, Trash2 } from "lucide-react";
 import {
   Drawer,
   DrawerContent,
@@ -14,11 +14,11 @@ import {
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-// Section emojis (Apple style from emojipedia)
+// Section config with image paths
 const SECTION_CONFIG = {
-  today: { emoji: "🐝", label: "today" },
-  tomorrow: { emoji: "🍋", label: "tomorrow" },
-  later: { emoji: "🌻", label: "later" },
+  today: { image: "/emojis/bee.png", label: "today" },
+  tomorrow: { image: "/emojis/lemon.png", label: "tomorrow" },
+  someday: { image: "/emojis/sunflower.png", label: "someday" },
 };
 
 // Landing Screen
@@ -56,14 +56,102 @@ const LandingScreen = ({ onSelectProfile }) => {
   );
 };
 
+// Section Card Component (for main profile screen)
+const SectionCard = ({ section, taskCount, onClick }) => {
+  const config = SECTION_CONFIG[section];
+  
+  return (
+    <div 
+      className="section-card" 
+      onClick={onClick}
+      data-testid={`section-card-${section}`}
+    >
+      <img 
+        src={config.image} 
+        alt={config.label} 
+        className="section-emoji-img"
+      />
+      <div className="section-info">
+        <h2 className="section-title">{config.label}</h2>
+        <span className="task-count-badge" data-testid={`count-${section}`}>
+          {taskCount}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+// Profile Screen (shows section cards)
+const ProfileScreen = ({ profile, tasks, onBack, onSelectSection, onOpenSettings }) => {
+  const profileLabel = profile.charAt(0).toUpperCase() + profile.slice(1);
+  
+  const getTaskCount = (section) => {
+    const sectionKey = section === "someday" ? "someday" : section;
+    return tasks.filter((t) => t.section === sectionKey && !t.completed).length;
+  };
+
+  return (
+    <div className="profile-screen" data-testid="profile-screen">
+      {/* Header */}
+      <div className="screen-header">
+        <h1 className="header-title">{profileLabel}</h1>
+        <button 
+          className="settings-btn"
+          onClick={onOpenSettings}
+          data-testid="settings-btn"
+        >
+          <Settings size={28} strokeWidth={1.5} />
+        </button>
+      </div>
+
+      {/* Section Cards */}
+      <div className="sections-container">
+        {["today", "tomorrow", "someday"].map((section) => (
+          <SectionCard
+            key={section}
+            section={section}
+            taskCount={getTaskCount(section)}
+            onClick={() => onSelectSection(section)}
+          />
+        ))}
+      </div>
+
+      {/* Footer */}
+      <div className="screen-footer">
+        <button 
+          className="back-btn"
+          onClick={onBack}
+          data-testid="back-btn"
+        >
+          <ArrowLeft size={24} strokeWidth={2} />
+        </button>
+        <button 
+          className="fab"
+          onClick={() => onSelectSection("today")}
+          data-testid="add-task-fab"
+        >
+          <img 
+            src="/emojis/writing-hand.png" 
+            alt="Add task" 
+            className="fab-emoji"
+          />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // Task Item Component
 const TaskItem = ({ task, onToggle, onEdit }) => {
   return (
     <div
-      className="task-item task-card"
+      className="task-item"
       onClick={() => onEdit(task)}
       data-testid={`task-item-${task.id}`}
     >
+      <span className={`task-title ${task.completed ? "completed" : ""}`}>
+        {task.title}
+      </span>
       <div
         className={`task-checkbox ${task.completed ? "checked" : ""}`}
         onClick={(e) => {
@@ -72,47 +160,64 @@ const TaskItem = ({ task, onToggle, onEdit }) => {
         }}
         data-testid={`task-checkbox-${task.id}`}
       >
-        {task.completed && <Check size={14} strokeWidth={3} />}
+        {task.completed && <Check size={16} strokeWidth={3} />}
       </div>
-      <span className={`task-title ${task.completed ? "completed" : ""}`}>
-        {task.title}
-      </span>
     </div>
   );
 };
 
-// Section Component
-const TaskSection = ({ section, tasks, onToggleTask, onEditTask }) => {
+// Section Detail Screen (shows tasks for a section)
+const SectionScreen = ({ 
+  profile, 
+  section, 
+  tasks, 
+  onBack, 
+  onToggleTask, 
+  onEditTask,
+  onAddTask 
+}) => {
   const config = SECTION_CONFIG[section];
-  const incompleteTasks = tasks.filter((t) => !t.completed);
-  const completedTasks = tasks.filter((t) => t.completed);
+  const sectionTasks = tasks.filter((t) => t.section === section);
+  const incompleteTasks = sectionTasks.filter((t) => !t.completed);
+  const completedTasks = sectionTasks.filter((t) => t.completed);
   const taskCount = incompleteTasks.length;
 
-  return (
-    <div className="task-section" data-testid={`section-${section}`}>
-      <div className="section-card">
-        <div className="section-header">
-          <span className="section-emoji">{config.emoji}</span>
-        </div>
-        <div className="section-title-row">
-          <h2 className="section-title">{config.label}</h2>
-          <span className="task-count-badge" data-testid={`count-${section}`}>
-            {taskCount}
-          </span>
-        </div>
+  const [addDrawerOpen, setAddDrawerOpen] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
 
-        {incompleteTasks.length > 0 && (
-          <div className="task-list">
-            {incompleteTasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                onToggle={onToggleTask}
-                onEdit={onEditTask}
-              />
-            ))}
-          </div>
-        )}
+  const handleAddTask = () => {
+    if (newTaskTitle.trim()) {
+      onAddTask(newTaskTitle.trim(), section);
+      setNewTaskTitle("");
+      setAddDrawerOpen(false);
+    }
+  };
+
+  return (
+    <div className="section-screen" data-testid={`section-screen-${section}`}>
+      {/* Section Header */}
+      <div className="section-header-detail">
+        <img 
+          src={config.image} 
+          alt={config.label} 
+          className="section-header-emoji"
+        />
+        <div className="section-header-info">
+          <h1 className="section-header-title">{config.label}</h1>
+          <span className="section-header-count">{taskCount}</span>
+        </div>
+      </div>
+
+      {/* Task List */}
+      <div className="task-list">
+        {incompleteTasks.map((task) => (
+          <TaskItem
+            key={task.id}
+            task={task}
+            onToggle={onToggleTask}
+            onEdit={onEditTask}
+          />
+        ))}
 
         {completedTasks.length > 0 && (
           <div className="completed-section">
@@ -127,85 +232,64 @@ const TaskSection = ({ section, tasks, onToggleTask, onEditTask }) => {
           </div>
         )}
       </div>
-    </div>
-  );
-};
 
-// Add Task Drawer
-const AddTaskDrawer = ({ open, onClose, onAdd, currentSection }) => {
-  const [title, setTitle] = useState("");
-  const [section, setSection] = useState(currentSection || "today");
-
-  useEffect(() => {
-    if (open) {
-      setTitle("");
-      setSection(currentSection || "today");
-    }
-  }, [open, currentSection]);
-
-  const handleAdd = () => {
-    if (title.trim()) {
-      onAdd(title.trim(), section);
-      setTitle("");
-      onClose();
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && title.trim()) {
-      handleAdd();
-    }
-  };
-
-  return (
-    <Drawer open={open} onOpenChange={onClose}>
-      <DrawerContent data-testid="add-task-drawer">
-        <DrawerHeader className="sr-only">
-          <DrawerTitle>Add New Task</DrawerTitle>
-          <DrawerDescription>Create a new task for your list</DrawerDescription>
-        </DrawerHeader>
-        <div className="drawer-content">
-          <input
-            type="text"
-            className="drawer-input"
-            placeholder="today I will..."
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={handleKeyDown}
-            autoFocus
-            data-testid="add-task-input"
+      {/* Footer */}
+      <div className="screen-footer">
+        <button 
+          className="back-btn clear-btn"
+          onClick={onBack}
+          data-testid="section-back-btn"
+        >
+          <span className="clear-icon">Tx</span>
+        </button>
+        <button 
+          className="fab"
+          onClick={() => setAddDrawerOpen(true)}
+          data-testid="section-add-fab"
+        >
+          <img 
+            src="/emojis/writing-hand.png" 
+            alt="Add task" 
+            className="fab-emoji"
           />
-          
-          <div className="drawer-actions">
-            {Object.entries(SECTION_CONFIG).map(([key, config]) => (
-              <button
-                key={key}
-                className={`section-pill ${section === key ? "active" : ""}`}
-                onClick={() => setSection(key)}
-                data-testid={`section-pill-${key}`}
-              >
-                <span>{config.emoji}</span>
-                <span>{config.label}</span>
-              </button>
-            ))}
-            
+        </button>
+      </div>
+
+      {/* Add Task Drawer */}
+      <Drawer open={addDrawerOpen} onOpenChange={setAddDrawerOpen}>
+        <DrawerContent className="add-drawer-content" data-testid="add-task-drawer">
+          <DrawerHeader className="sr-only">
+            <DrawerTitle>Add New Task</DrawerTitle>
+            <DrawerDescription>Create a new task</DrawerDescription>
+          </DrawerHeader>
+          <div className="add-drawer-body">
+            <input
+              type="text"
+              className="add-task-input"
+              placeholder="today I will..."
+              value={newTaskTitle}
+              onChange={(e) => setNewTaskTitle(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddTask()}
+              autoFocus
+              data-testid="add-task-input"
+            />
             <button
-              className="add-btn"
-              onClick={handleAdd}
-              disabled={!title.trim()}
+              className="add-task-btn"
+              onClick={handleAddTask}
+              disabled={!newTaskTitle.trim()}
               data-testid="add-task-submit-btn"
             >
               add
             </button>
           </div>
-        </div>
-      </DrawerContent>
-    </Drawer>
+        </DrawerContent>
+      </Drawer>
+    </div>
   );
 };
 
 // Edit Task Drawer
-const EditTaskDrawer = ({ open, onClose, task, onUpdate, onDelete }) => {
+const EditTaskDrawer = ({ open, onClose, task, onUpdate, onDelete, sections }) => {
   const [title, setTitle] = useState("");
   const [section, setSection] = useState("today");
   const [taskId, setTaskId] = useState(null);
@@ -239,18 +323,18 @@ const EditTaskDrawer = ({ open, onClose, task, onUpdate, onDelete }) => {
       <DrawerContent data-testid="edit-task-drawer">
         <DrawerHeader className="sr-only">
           <DrawerTitle>Edit Task</DrawerTitle>
-          <DrawerDescription>Modify or delete your task</DrawerDescription>
+          <DrawerDescription>Modify your task</DrawerDescription>
         </DrawerHeader>
-        <div className="drawer-content">
+        <div className="edit-drawer-body">
           <input
             type="text"
-            className="drawer-input"
+            className="edit-task-input"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             data-testid="edit-task-input"
           />
           
-          <div className="drawer-actions">
+          <div className="section-selector">
             {Object.entries(SECTION_CONFIG).map(([key, config]) => (
               <button
                 key={key}
@@ -258,13 +342,12 @@ const EditTaskDrawer = ({ open, onClose, task, onUpdate, onDelete }) => {
                 onClick={() => setSection(key)}
                 data-testid={`edit-section-pill-${key}`}
               >
-                <span>{config.emoji}</span>
+                <img src={config.image} alt={config.label} className="pill-emoji" />
                 <span>{config.label}</span>
               </button>
             ))}
-            
             <button
-              className="add-btn"
+              className="save-btn"
               onClick={handleSave}
               disabled={!title.trim()}
               data-testid="save-task-btn"
@@ -273,31 +356,32 @@ const EditTaskDrawer = ({ open, onClose, task, onUpdate, onDelete }) => {
             </button>
           </div>
           
-          <div className="flex justify-center mt-4">
-            <button
-              className="delete-btn flex items-center gap-2 text-sm"
-              onClick={handleDelete}
-              data-testid="delete-task-btn"
-            >
-              <Trash2 size={16} />
-              <span>Delete task</span>
-            </button>
-          </div>
+          <button
+            className="delete-btn"
+            onClick={handleDelete}
+            data-testid="delete-task-btn"
+          >
+            <Trash2 size={16} />
+            <span>Delete task</span>
+          </button>
         </div>
       </DrawerContent>
     </Drawer>
   );
 };
 
-// Tasks Screen
-const TasksScreen = ({ profile, onBack }) => {
+// Main App
+function App() {
+  const [currentProfile, setCurrentProfile] = useState(null);
+  const [currentSection, setCurrentSection] = useState(null);
   const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [addDrawerOpen, setAddDrawerOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [editDrawerOpen, setEditDrawerOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
 
-  const fetchTasks = useCallback(async () => {
+  const fetchTasks = useCallback(async (profile) => {
+    if (!profile) return;
+    setLoading(true);
     try {
       const response = await axios.get(`${API}/tasks/${profile}`);
       setTasks(response.data);
@@ -307,17 +391,19 @@ const TasksScreen = ({ profile, onBack }) => {
     } finally {
       setLoading(false);
     }
-  }, [profile]);
+  }, []);
 
   useEffect(() => {
-    fetchTasks();
-  }, [fetchTasks]);
+    if (currentProfile) {
+      fetchTasks(currentProfile);
+    }
+  }, [currentProfile, fetchTasks]);
 
   const handleAddTask = async (title, section) => {
     try {
       const response = await axios.post(`${API}/tasks`, {
         title,
-        profile,
+        profile: currentProfile,
         section,
       });
       setTasks([...tasks, response.data]);
@@ -367,71 +453,52 @@ const TasksScreen = ({ profile, onBack }) => {
     setEditDrawerOpen(true);
   };
 
-  const getTasksBySection = (section) =>
-    tasks.filter((t) => t.section === section);
+  const handleBackFromSection = () => {
+    setCurrentSection(null);
+  };
 
-  const profileLabel = profile.charAt(0).toUpperCase() + profile.slice(1);
+  const handleBackFromProfile = () => {
+    setCurrentProfile(null);
+    setCurrentSection(null);
+    setTasks([]);
+  };
 
-  if (loading) {
+  if (loading && tasks.length === 0) {
     return (
-      <div className="tasks-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black" />
+      <div className="app-container">
+        <div className="loading-screen">
+          <div className="spinner" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="tasks-screen" data-testid="tasks-screen">
-      {/* Header */}
-      <div className="tasks-header">
-        <h1 className="profile-title">{profileLabel}</h1>
-        <button
-          className="settings-btn"
-          onClick={onBack}
-          data-testid="back-btn"
-        >
-          <X size={20} />
-        </button>
-      </div>
-
-      {/* Sections */}
-      {["today", "tomorrow", "later"].map((section) => (
-        <TaskSection
-          key={section}
-          section={section}
-          tasks={getTasksBySection(section)}
+    <div className="app-container">
+      <Toaster position="top-center" richColors />
+      
+      {!currentProfile ? (
+        <LandingScreen onSelectProfile={setCurrentProfile} />
+      ) : currentSection ? (
+        <SectionScreen
+          profile={currentProfile}
+          section={currentSection}
+          tasks={tasks}
+          onBack={handleBackFromSection}
           onToggleTask={handleToggleTask}
           onEditTask={handleEditTask}
+          onAddTask={handleAddTask}
         />
-      ))}
+      ) : (
+        <ProfileScreen
+          profile={currentProfile}
+          tasks={tasks}
+          onBack={handleBackFromProfile}
+          onSelectSection={setCurrentSection}
+          onOpenSettings={() => {}}
+        />
+      )}
 
-      {/* Bottom Navigation */}
-      <div className="bottom-nav">
-        <button
-          className="nav-btn"
-          onClick={fetchTasks}
-          data-testid="refresh-btn"
-        >
-          <RotateCcw size={20} />
-        </button>
-        <button
-          className="fab"
-          onClick={() => setAddDrawerOpen(true)}
-          data-testid="add-task-fab"
-        >
-          <Plus size={24} strokeWidth={2.5} />
-        </button>
-      </div>
-
-      {/* Add Task Drawer */}
-      <AddTaskDrawer
-        open={addDrawerOpen}
-        onClose={() => setAddDrawerOpen(false)}
-        onAdd={handleAddTask}
-        currentSection="today"
-      />
-
-      {/* Edit Task Drawer */}
       <EditTaskDrawer
         open={editDrawerOpen}
         onClose={() => {
@@ -442,26 +509,6 @@ const TasksScreen = ({ profile, onBack }) => {
         onUpdate={handleUpdateTask}
         onDelete={handleDeleteTask}
       />
-    </div>
-  );
-};
-
-// Main App
-function App() {
-  const [currentProfile, setCurrentProfile] = useState(null);
-
-  return (
-    <div className="app-container">
-      <Toaster position="top-center" richColors />
-      
-      {!currentProfile ? (
-        <LandingScreen onSelectProfile={setCurrentProfile} />
-      ) : (
-        <TasksScreen
-          profile={currentProfile}
-          onBack={() => setCurrentProfile(null)}
-        />
-      )}
     </div>
   );
 }
