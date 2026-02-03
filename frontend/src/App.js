@@ -8,9 +8,9 @@ import confetti from "canvas-confetti";
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-// Google OAuth configuration
-const GOOGLE_OAUTH_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/google";
-const REDIRECT_URI = `${window.location.origin}/auth/callback`;
+// Google OAuth configuration - Emergent Auth
+// REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
+const EMERGENT_AUTH_URL = "https://auth.emergentagent.com/";
 
 // Theme configurations - CORRECTED arrangement
 const THEMES = {
