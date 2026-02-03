@@ -897,8 +897,23 @@ function App() {
     setAuthState('unauthenticated');
   }, []);
 
+  // ============================================================
+  // AUTH STATE INITIALIZATION
+  // ============================================================
+
   // Check for OAuth callback - session_id comes in URL fragment (hash)
   useEffect(() => {
+    // STANDALONE_MODE: Skip OAuth detection, just check for guest mode
+    if (STANDALONE_MODE) {
+      const isGuest = localStorage.getItem('isGuest') === 'true';
+      if (isGuest) {
+        setAuthState('guest');
+      } else {
+        setAuthState('unauthenticated');
+      }
+      return;
+    }
+    
     // Check URL fragment for session_id (format: #session_id=xxx)
     const hash = window.location.hash;
     let sessionId = null;
