@@ -1126,8 +1126,8 @@ function App() {
   };
 
   const handleUpdateTask = async (taskId, updates) => {
-    if (authState === 'guest') {
-      // Local update for guest
+    if (authState === 'guest' || STANDALONE_MODE) {
+      // Local update for guest/standalone mode
       const updatedTask = { ...tasks.find(t => t.id === taskId), ...updates, updated_at: new Date().toISOString() };
       setGuestTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
       setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
@@ -1135,7 +1135,9 @@ function App() {
       return;
     }
     
+    /* Backend task update - uncomment when STANDALONE_MODE = false
     try {
+      const axios = (await import('axios')).default;
       const headers = sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
       const response = await axios.patch(`${API}/tasks/${taskId}`, updates, { headers });
       setTasks(tasks.map((t) => (t.id === taskId ? response.data : t)));
@@ -1144,6 +1146,7 @@ function App() {
       console.error("Error updating task:", error);
       toast.error("Failed to update task");
     }
+    */
   };
 
   const handleDeleteTask = async (taskId) => {
