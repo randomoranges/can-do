@@ -187,17 +187,45 @@ const ProfileScreen = ({ profile, tasks, onBack, onSelectSection, onOpenSettings
   );
 };
 
-// Task Item Component
+// Task Item Component - supports long text and subtasks
 const TaskItem = ({ task, onToggle, onEdit }) => {
+  // Parse subtasks from task title (lines starting with - or *)
+  const parseTaskContent = (text) => {
+    const lines = text.split('\n');
+    const mainTitle = lines[0];
+    const subtasks = lines.slice(1).filter(line => 
+      line.trim().startsWith('-') || line.trim().startsWith('*') || line.trim().startsWith('•')
+    ).map(line => line.trim().replace(/^[-*•]\s*/, ''));
+    return { mainTitle, subtasks };
+  };
+
+  const { mainTitle, subtasks } = parseTaskContent(task.title);
+
   return (
     <div
       className="task-item"
       onClick={() => onEdit(task)}
       data-testid={`task-item-${task.id}`}
     >
-      <span className={`task-title ${task.completed ? "completed" : ""}`}>
-        {task.title}
-      </span>
+      <div className="task-content">
+        <span className={`task-title ${task.completed ? "completed" : ""}`}>
+          {mainTitle}
+        </span>
+        {subtasks.length > 0 && (
+          <div className="task-subtasks">
+            {subtasks.map((subtask, index) => (
+              <div key={index} className="subtask-item">
+                <div className={`subtask-checkbox ${task.completed ? "checked" : ""}`}>
+                  {task.completed && <Check size={12} strokeWidth={3} />}
+                </div>
+                <span className={`subtask-title ${task.completed ? "completed" : ""}`}>
+                  {subtask}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
       <div
         className={`task-checkbox ${task.completed ? "checked" : ""}`}
         onClick={(e) => {
