@@ -25,11 +25,13 @@ const SECTION_CONFIG = {
 const LandingScreen = ({ onSelectProfile }) => {
   return (
     <div className="landing-screen" data-testid="landing-screen">
-      <p className="landing-tagline">
-        One task at a time,
-        <br />
-        you've got this.
-      </p>
+      <div className="landing-content">
+        <p className="landing-tagline">
+          One task at a time,
+          <br />
+          you've got this.
+        </p>
+      </div>
       
       <div className="profile-selector">
         <div
