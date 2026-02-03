@@ -762,6 +762,12 @@ const EditTaskDrawer = ({ open, onClose, task, onUpdate, onDelete, theme }) => {
 
 // Main App
 function App() {
+  // Auth state
+  const [authState, setAuthState] = useState('loading'); // 'loading', 'unauthenticated', 'guest', 'authenticated'
+  const [user, setUser] = useState(null);
+  const [sessionToken, setSessionToken] = useState(() => localStorage.getItem('sessionToken'));
+  
+  // App state
   const [currentProfile, setCurrentProfile] = useState(null);
   const [currentSection, setCurrentSection] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -772,6 +778,104 @@ function App() {
   
   const [currentTheme, setCurrentTheme] = useState(() => localStorage.getItem('taskTheme') || 'yellow');
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('darkMode') || 'auto');
+  
+  // Guest mode local storage
+  const [guestTasks, setGuestTasks] = useState(() => {
+    const saved = localStorage.getItem('guestTasks');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Check for OAuth callback
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionId = urlParams.get('session_id');
+    
+    if (sessionId) {
+      // Clear URL params
+      window.history.replaceState({}, document.title, window.location.pathname);
+      handleOAuthCallback(sessionId);
+    } else if (sessionToken) {
+      // Try to restore session
+      checkSession();
+    } else {
+      // Check if guest mode
+      const isGuest = localStorage.getItem('isGuest') === 'true';
+      if (isGuest) {
+        setAuthState('guest');
+      } else {
+        setAuthState('unauthenticated');
+      }
+    }
+  }, []);
+
+  const handleOAuthCallback = async (sessionId) => {
+    try {
+      const response = await axios.post(`${API}/auth/session`, { session_id: sessionId });
+      const userData = response.data;
+      
+      // Get token from cookie or response
+      const token = response.headers['x-session-token'] || `session_${Date.now()}`;
+      localStorage.setItem('sessionToken', token);
+      localStorage.removeItem('isGuest');
+      setSessionToken(token);
+      setUser(userData);
+      setAuthState('authenticated');
+      toast.success(`Welcome, ${userData.name}!`);
+    } catch (error) {
+      console.error('OAuth callback error:', error);
+      toast.error('Failed to sign in. Please try again.');
+      setAuthState('unauthenticated');
+    }
+  };
+
+  const checkSession = async () => {
+    try {
+      const response = await axios.get(`${API}/auth/me`, {
+        headers: { Authorization: `Bearer ${sessionToken}` }
+      });
+      setUser(response.data);
+      setAuthState('authenticated');
+    } catch (error) {
+      console.error('Session check failed:', error);
+      localStorage.removeItem('sessionToken');
+      setSessionToken(null);
+      setAuthState('unauthenticated');
+    }
+  };
+
+  const handleGoogleLogin = () => {
+    const redirectUri = encodeURIComponent(window.location.origin);
+    window.location.href = `${GOOGLE_OAUTH_URL}?redirect_uri=${redirectUri}`;
+  };
+
+  const handleGuestMode = () => {
+    localStorage.setItem('isGuest', 'true');
+    setAuthState('guest');
+  };
+
+  const handleLogout = async () => {
+    if (authState === 'authenticated' && sessionToken) {
+      try {
+        await axios.post(`${API}/auth/logout`, {}, {
+          headers: { Authorization: `Bearer ${sessionToken}` }
+        });
+      } catch (error) {
+        console.error('Logout error:', error);
+      }
+    }
+    
+    // Clear all auth state
+    localStorage.removeItem('sessionToken');
+    localStorage.removeItem('isGuest');
+    setSessionToken(null);
+    setUser(null);
+    setCurrentProfile(null);
+    setCurrentSection(null);
+    setTasks([]);
+    setSettingsOpen(false);
+    setAuthState('unauthenticated');
+    toast.success('Signed out successfully');
+  };
 
   // Apply dark mode
   useEffect(() => {
@@ -818,11 +922,26 @@ function App() {
     }
   };
 
+  // Save guest tasks to localStorage
+  useEffect(() => {
+    if (authState === 'guest') {
+      localStorage.setItem('guestTasks', JSON.stringify(guestTasks));
+    }
+  }, [guestTasks, authState]);
+
   const fetchTasks = useCallback(async (profile) => {
     if (!profile) return;
+    
+    if (authState === 'guest') {
+      // For guest mode, filter from local tasks
+      setTasks(guestTasks.filter(t => t.profile === profile));
+      return;
+    }
+    
     setLoading(true);
     try {
-      const response = await axios.get(`${API}/tasks/${profile}`);
+      const headers = sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
+      const response = await axios.get(`${API}/tasks/${profile}`, { headers });
       setTasks(response.data);
     } catch (error) {
       console.error("Error fetching tasks:", error);
@@ -830,21 +949,39 @@ function App() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authState, sessionToken, guestTasks]);
 
   useEffect(() => {
-    if (currentProfile) {
+    if (currentProfile && (authState === 'authenticated' || authState === 'guest')) {
       fetchTasks(currentProfile);
     }
-  }, [currentProfile, fetchTasks]);
+  }, [currentProfile, fetchTasks, authState]);
 
   const handleAddTask = async (title, section) => {
+    if (authState === 'guest') {
+      // Local task creation for guest
+      const newTask = {
+        id: `local_${Date.now()}`,
+        title,
+        profile: currentProfile,
+        section,
+        completed: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      setGuestTasks(prev => [...prev, newTask]);
+      setTasks(prev => [...prev, newTask]);
+      toast.success("Task added!");
+      return;
+    }
+    
     try {
+      const headers = sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
       const response = await axios.post(`${API}/tasks`, {
         title,
         profile: currentProfile,
         section,
-      });
+      }, { headers });
       setTasks([...tasks, response.data]);
       toast.success("Task added!");
     } catch (error) {
@@ -854,10 +991,19 @@ function App() {
   };
 
   const handleToggleTask = async (task) => {
+    if (authState === 'guest') {
+      // Local toggle for guest
+      const updatedTask = { ...task, completed: !task.completed, updated_at: new Date().toISOString() };
+      setGuestTasks(prev => prev.map(t => t.id === task.id ? updatedTask : t));
+      setTasks(prev => prev.map(t => t.id === task.id ? updatedTask : t));
+      return;
+    }
+    
     try {
+      const headers = sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
       const response = await axios.patch(`${API}/tasks/${task.id}`, {
         completed: !task.completed,
-      });
+      }, { headers });
       setTasks(tasks.map((t) => (t.id === task.id ? response.data : t)));
     } catch (error) {
       console.error("Error updating task:", error);
@@ -866,8 +1012,18 @@ function App() {
   };
 
   const handleUpdateTask = async (taskId, updates) => {
+    if (authState === 'guest') {
+      // Local update for guest
+      const updatedTask = { ...tasks.find(t => t.id === taskId), ...updates, updated_at: new Date().toISOString() };
+      setGuestTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
+      setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
+      toast.success("Task updated!");
+      return;
+    }
+    
     try {
-      const response = await axios.patch(`${API}/tasks/${taskId}`, updates);
+      const headers = sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
+      const response = await axios.patch(`${API}/tasks/${taskId}`, updates, { headers });
       setTasks(tasks.map((t) => (t.id === taskId ? response.data : t)));
       toast.success("Task updated!");
     } catch (error) {
@@ -877,8 +1033,17 @@ function App() {
   };
 
   const handleDeleteTask = async (taskId) => {
+    if (authState === 'guest') {
+      // Local delete for guest
+      setGuestTasks(prev => prev.filter(t => t.id !== taskId));
+      setTasks(prev => prev.filter(t => t.id !== taskId));
+      toast.success("Task deleted!");
+      return;
+    }
+    
     try {
-      await axios.delete(`${API}/tasks/${taskId}`);
+      const headers = sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
+      await axios.delete(`${API}/tasks/${taskId}`, { headers });
       setTasks(tasks.filter((t) => t.id !== taskId));
       toast.success("Task deleted!");
     } catch (error) {
@@ -889,8 +1054,18 @@ function App() {
 
   const handleClearCompleted = async (section) => {
     const completedTasks = tasks.filter((t) => t.section === section && t.completed);
+    
+    if (authState === 'guest') {
+      // Local clear for guest
+      setGuestTasks(prev => prev.filter(t => !(t.section === section && t.completed)));
+      setTasks(prev => prev.filter(t => !(t.section === section && t.completed)));
+      toast.success("Completed tasks cleared!");
+      return;
+    }
+    
     try {
-      await Promise.all(completedTasks.map((t) => axios.delete(`${API}/tasks/${t.id}`)));
+      const headers = sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
+      await Promise.all(completedTasks.map((t) => axios.delete(`${API}/tasks/${t.id}`, { headers })));
       setTasks(tasks.filter((t) => !(t.section === section && t.completed)));
       toast.success("Completed tasks cleared!");
     } catch (error) {
@@ -911,6 +1086,31 @@ function App() {
     setTasks([]);
   };
 
+  // Loading state
+  if (authState === 'loading') {
+    return (
+      <div className="app-container">
+        <div className="loading-screen">
+          <div className="spinner" />
+        </div>
+      </div>
+    );
+  }
+
+  // Unauthenticated - show login screen
+  if (authState === 'unauthenticated') {
+    return (
+      <div className="app-container">
+        <Toaster position="top-center" richColors />
+        <LoginScreen 
+          onGoogleLogin={handleGoogleLogin} 
+          onGuestMode={handleGuestMode}
+          isLoading={false}
+        />
+      </div>
+    );
+  }
+
   if (loading && tasks.length === 0) {
     return (
       <div className="app-container">
@@ -926,7 +1126,10 @@ function App() {
       <Toaster position="top-center" richColors />
       
       {!currentProfile ? (
-        <LandingScreen onSelectProfile={setCurrentProfile} />
+        <LandingScreen 
+          onSelectProfile={setCurrentProfile} 
+          userName={user?.name}
+        />
       ) : currentSection ? (
         <SectionScreen
           profile={currentProfile}
@@ -968,6 +1171,9 @@ function App() {
         onDarkModeChange={handleDarkModeChange}
         currentProfile={currentProfile}
         onProfileChange={handleProfileChangeInSettings}
+        user={user}
+        isGuest={authState === 'guest'}
+        onLogout={handleLogout}
       />
     </div>
   );
