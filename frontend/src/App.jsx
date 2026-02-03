@@ -27,6 +27,7 @@ const THEMES = {
   yellow: {
     name: "Yellow",
     color: "#F59E0B",
+    caption: "bee yellow",
     today: { image: "/emojis/bee.png", label: "today", placeholder: "today I will..." },
     tomorrow: { image: "/emojis/lemon.png", label: "tomorrow", placeholder: "tomorrow I will..." },
     someday: { image: "/emojis/sunflower.png", label: "someday", placeholder: "someday I will..." },
@@ -34,6 +35,7 @@ const THEMES = {
   gold: {
     name: "Gold",
     color: "#D97706",
+    caption: "golden brown texture, like sun",
     today: { image: "/emojis/green-beer.png", label: "today", placeholder: "today I will..." },
     tomorrow: { image: "/emojis/gold-tumbler.png", label: "tomorrow", placeholder: "tomorrow I will..." },
     someday: { image: "/emojis/gold-clinking.png", label: "someday", placeholder: "someday I will..." },
@@ -41,6 +43,7 @@ const THEMES = {
   green: {
     name: "Green",
     color: "#16A34A",
+    caption: "you don't get high, you get medicated",
     today: { image: "/emojis/gold-shamrock.png", label: "today", placeholder: "today I will..." },
     tomorrow: { image: "/emojis/green-plant.png", label: "tomorrow", placeholder: "tomorrow I will..." },
     someday: { image: "/emojis/green-tree.png", label: "someday", placeholder: "someday I will..." },
@@ -48,6 +51,7 @@ const THEMES = {
   red: {
     name: "Red",
     color: "#DC2626",
+    caption: "may you find true luv in this life or next, if you hve already found, go listen to GFY song by Dennis Lloyd (01:39 to 02:22)",
     today: { image: "/emojis/red-rose.png", label: "today", placeholder: "today I will..." },
     tomorrow: { image: "/emojis/red-wine.png", label: "tomorrow", placeholder: "tomorrow I will..." },
     someday: { image: "/emojis/red-heart.png", label: "someday", placeholder: "someday I will..." },
