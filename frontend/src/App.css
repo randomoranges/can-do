@@ -499,10 +499,12 @@
     background: #F5F5F5 !important;
     border-top-left-radius: 2rem !important;
     border-top-right-radius: 2rem !important;
+    max-height: 90vh !important;
 }
 
 .add-drawer-body {
     padding: 1rem 1.5rem 2rem;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 2rem);
 }
 
 /* Textarea for adding tasks - supports multiline */
@@ -513,16 +515,17 @@
     border: none;
     border-radius: 1.25rem;
     font-family: 'League Spartan', sans-serif;
-    font-size: 1.125rem;
+    font-size: 1rem;
     font-weight: 500;
     color: #111827;
     outline: none;
-    margin-bottom: 1rem;
-    min-height: 4rem;
-    max-height: 12rem;
+    margin-bottom: 0.75rem;
+    min-height: 5rem;
+    max-height: 10rem;
     resize: none;
     overflow-y: auto;
     line-height: 1.5;
+    -webkit-appearance: none;
 }
 
 .add-task-input::placeholder {
@@ -531,11 +534,18 @@
 
 .add-task-hint {
     font-family: 'League Spartan', sans-serif;
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     font-weight: 400;
     color: #9CA3AF;
     margin-bottom: 1rem;
     padding-left: 0.25rem;
+}
+
+.add-drawer-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
 }
 
 .add-task-btn {
