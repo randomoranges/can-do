@@ -450,6 +450,18 @@ function App() {
     }
   };
 
+  const handleClearCompleted = async (section) => {
+    const completedTasks = tasks.filter((t) => t.section === section && t.completed);
+    try {
+      await Promise.all(completedTasks.map((t) => axios.delete(`${API}/tasks/${t.id}`)));
+      setTasks(tasks.filter((t) => !(t.section === section && t.completed)));
+      toast.success("Completed tasks cleared!");
+    } catch (error) {
+      console.error("Error clearing tasks:", error);
+      toast.error("Failed to clear tasks");
+    }
+  };
+
   const handleEditTask = (task) => {
     setEditingTask(task);
     setEditDrawerOpen(true);
