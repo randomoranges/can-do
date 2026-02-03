@@ -525,7 +525,7 @@ html {
 }
 
 .settings-modal {
-    background: #F5F5F5;
+    background: var(--bg-primary);
     border-radius: 1.5rem;
     width: 100%;
     max-width: 380px;
@@ -535,14 +535,8 @@ html {
 }
 
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: scale(0.95);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
 }
 
 .settings-header {
@@ -550,14 +544,14 @@ html {
     align-items: center;
     justify-content: space-between;
     padding: 1.25rem 1.5rem;
-    border-bottom: 1px solid #E5E7EB;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .settings-title {
     font-family: 'League Spartan', sans-serif;
     font-size: 1.5rem;
     font-weight: 600;
-    color: #111827;
+    color: var(--text-primary);
 }
 
 .settings-close {
@@ -568,18 +562,106 @@ html {
     justify-content: center;
     background: none;
     border: none;
-    color: #6B7280;
+    color: var(--text-secondary);
     cursor: pointer;
     border-radius: 0.5rem;
     transition: background-color 0.2s ease;
 }
 
 .settings-close:hover {
-    background: #E5E7EB;
+    background: var(--bg-secondary);
 }
 
 .settings-body {
-    padding: 1.25rem 1.5rem;
+    padding: 1rem 1.5rem 1.5rem;
+}
+
+.settings-section {
+    margin-bottom: 1.5rem;
+}
+
+.settings-section:last-child {
+    margin-bottom: 0;
+}
+
+.settings-section-label {
+    font-family: 'League Spartan', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+}
+
+/* Profile Toggle */
+.profile-toggle {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.profile-toggle-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border: 2px solid transparent;
+    border-radius: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'League Spartan', sans-serif;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.profile-toggle-btn:hover {
+    background: var(--border-color);
+}
+
+.profile-toggle-btn.active {
+    border-color: var(--text-primary);
+    color: var(--text-primary);
+}
+
+.profile-toggle-btn .profile-indicator {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* Appearance Toggle */
+.appearance-toggle {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.appearance-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    padding: 0.75rem 0.5rem;
+    background: var(--bg-secondary);
+    border: 2px solid transparent;
+    border-radius: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'League Spartan', sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.appearance-btn:hover {
+    background: var(--border-color);
+}
+
+.appearance-btn.active {
+    border-color: var(--text-primary);
+    color: var(--text-primary);
 }
 
 /* Theme grid */
@@ -587,11 +669,10 @@ html {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 0.75rem;
-    margin-bottom: 1.5rem;
 }
 
 .theme-option {
-    background: #EBEBEB;
+    background: var(--bg-secondary);
     border: 2px solid transparent;
     border-radius: 1rem;
     padding: 0.75rem;
@@ -604,12 +685,11 @@ html {
 }
 
 .theme-option:hover {
-    background: #E0E0E0;
+    background: var(--border-color);
 }
 
 .theme-option.active {
-    border-color: #111827;
-    background: #E0E0E0;
+    border-color: var(--text-primary);
 }
 
 .theme-preview {
@@ -630,19 +710,6 @@ html {
 }
 
 /* Special themes */
-.special-themes {
-    border-top: 1px solid #E5E7EB;
-    padding-top: 1rem;
-}
-
-.special-themes-label {
-    font-family: 'League Spartan', sans-serif;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: #6B7280;
-    margin-bottom: 0.75rem;
-}
-
 .special-themes-list {
     display: flex;
     flex-direction: column;
@@ -650,7 +717,7 @@ html {
 }
 
 .special-theme-option {
-    background: #EBEBEB;
+    background: var(--bg-secondary);
     border: 2px solid transparent;
     border-radius: 1rem;
     padding: 0.75rem 1rem;
@@ -662,12 +729,11 @@ html {
 }
 
 .special-theme-option:hover {
-    background: #E0E0E0;
+    background: var(--border-color);
 }
 
 .special-theme-option.active {
-    border-color: #111827;
-    background: #E0E0E0;
+    border-color: var(--text-primary);
 }
 
 .special-theme-preview {
@@ -685,7 +751,7 @@ html {
     font-family: 'League Spartan', sans-serif;
     font-size: 1rem;
     font-weight: 500;
-    color: #374151;
+    color: var(--text-primary);
 }
 
 /* ==================== */
