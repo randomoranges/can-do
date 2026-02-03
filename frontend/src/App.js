@@ -948,9 +948,17 @@ function App() {
   }, [sessionToken, checkSession, handleOAuthCallback]);
 
   const handleGoogleLogin = () => {
+    // STANDALONE_MODE: Skip Google login
+    if (STANDALONE_MODE) {
+      toast.error('Google login not available in standalone mode');
+      return;
+    }
+    
+    /* Backend Google login - uncomment when STANDALONE_MODE = false
     // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
     const redirectUrl = encodeURIComponent(window.location.origin);
     window.location.href = `${EMERGENT_AUTH_URL}?redirect=${redirectUrl}`;
+    */
   };
 
   const handleGuestMode = () => {
