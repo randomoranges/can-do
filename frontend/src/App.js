@@ -179,7 +179,10 @@ const SettingsModal = ({
   darkMode, 
   onDarkModeChange,
   currentProfile,
-  onProfileChange
+  onProfileChange,
+  user,
+  isGuest,
+  onLogout
 }) => {
   if (!open) return null;
 
@@ -194,6 +197,35 @@ const SettingsModal = ({
         </div>
         
         <div className="settings-body">
+          {/* User Info Section */}
+          {user && !isGuest && (
+            <div className="settings-section user-section">
+              <div className="user-info">
+                {user.picture && (
+                  <img src={user.picture} alt={user.name} className="user-avatar" />
+                )}
+                <div className="user-details">
+                  <p className="user-name">{user.name}</p>
+                  <p className="user-email">{user.email}</p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {isGuest && (
+            <div className="settings-section user-section">
+              <div className="user-info guest">
+                <div className="guest-avatar">
+                  <User size={24} />
+                </div>
+                <div className="user-details">
+                  <p className="user-name">Guest Mode</p>
+                  <p className="user-email">Tasks saved locally</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Profile Section */}
           <div className="settings-section">
             <p className="settings-section-label">Profile</p>
@@ -298,6 +330,18 @@ const SettingsModal = ({
                 );
               })}
             </div>
+          </div>
+          
+          {/* Logout Section */}
+          <div className="settings-section logout-section">
+            <button 
+              className="logout-btn" 
+              onClick={onLogout}
+              data-testid="logout-btn"
+            >
+              <LogOut size={18} />
+              <span>{isGuest ? 'Exit Guest Mode' : 'Sign Out'}</span>
+            </button>
           </div>
         </div>
       </div>
