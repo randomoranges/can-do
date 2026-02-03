@@ -802,12 +802,16 @@ function App() {
 
   const handleOAuthCallback = useCallback(async (sessionId) => {
     try {
-      const response = await axios.post(`${API}/auth/session`, { session_id: sessionId });
+      const response = await axios.post(`${API}/auth/session`, { session_id: sessionId }, {
+        withCredentials: true  // Important for cookies
+      });
       const userData = response.data;
       
-      // Get token from cookie or response
-      const token = response.headers['x-session-token'] || `session_${Date.now()}`;
-      localStorage.setItem('sessionToken', token);
+      // Get token from response body
+      const token = userData.session_token;
+      if (token) {
+        localStorage.setItem('sessionToken', token);
+      }
       localStorage.removeItem('isGuest');
       setSessionToken(token);
       setUser(userData);
