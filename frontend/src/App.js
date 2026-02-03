@@ -1150,15 +1150,17 @@ function App() {
   };
 
   const handleDeleteTask = async (taskId) => {
-    if (authState === 'guest') {
-      // Local delete for guest
+    if (authState === 'guest' || STANDALONE_MODE) {
+      // Local delete for guest/standalone mode
       setGuestTasks(prev => prev.filter(t => t.id !== taskId));
       setTasks(prev => prev.filter(t => t.id !== taskId));
       toast.success("Task deleted!");
       return;
     }
     
+    /* Backend task deletion - uncomment when STANDALONE_MODE = false
     try {
+      const axios = (await import('axios')).default;
       const headers = sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
       await axios.delete(`${API}/tasks/${taskId}`, { headers });
       setTasks(tasks.filter((t) => t.id !== taskId));
@@ -1167,6 +1169,7 @@ function App() {
       console.error("Error deleting task:", error);
       toast.error("Failed to delete task");
     }
+    */
   };
 
   const handleClearCompleted = async (section) => {
