@@ -77,7 +77,7 @@ const THEMES = {
     name: "Pink",
     color: "#EC4899",
     today: { image: "/emojis/pink-blossom.png", label: "today", placeholder: "today I will..." },
-    tomorrow: { image: "/emojis/pink-purse.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    tomorrow: { image: "/emojis/flamingo.png", label: "tomorrow", placeholder: "tomorrow I will..." },
     someday: { image: "/emojis/pink-heart.png", label: "someday", placeholder: "someday I will..." },
   },
   brown: {
