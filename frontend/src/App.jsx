@@ -59,6 +59,7 @@ const THEMES = {
   violet: {
     name: "Violet",
     color: "#7C3AED",
+    caption: "why violet?",
     today: { image: "/emojis/violet-ok.png", label: "today", placeholder: "today I will..." },
     tomorrow: { image: "/emojis/violet-shrug.png", label: "tomorrow", placeholder: "tomorrow I will..." },
     someday: { image: "/emojis/violet-pregnant.png", label: "someday", placeholder: "someday I will..." },
@@ -66,6 +67,7 @@ const THEMES = {
   blue: {
     name: "Blue",
     color: "#2563EB",
+    caption: "butterfly effect",
     today: { image: "/emojis/blue-butterfly.png", label: "today", placeholder: "today I will..." },
     tomorrow: { image: "/emojis/blue-thunder.png", label: "tomorrow", placeholder: "tomorrow I will..." },
     someday: { image: "/emojis/blue-wave.png", label: "someday", placeholder: "someday I will..." },
@@ -73,6 +75,7 @@ const THEMES = {
   white: {
     name: "White",
     color: "#9CA3AF",
+    caption: "trading is hard",
     today: { image: "/emojis/white-chart.png", label: "today", placeholder: "today I will..." },
     tomorrow: { image: "/emojis/white-down.png", label: "tomorrow", placeholder: "tomorrow I will..." },
     someday: { image: "/emojis/white-up.png", label: "someday", placeholder: "someday I will..." },
@@ -80,6 +83,7 @@ const THEMES = {
   pink: {
     name: "Pink",
     color: "#EC4899",
+    caption: "pinkyys are so wanna be's",
     today: { image: "/emojis/pink-blossom.png", label: "today", placeholder: "today I will..." },
     tomorrow: { image: "/emojis/flamingo.png", label: "tomorrow", placeholder: "tomorrow I will..." },
     someday: { image: "/emojis/pink-heart.png", label: "someday", placeholder: "someday I will..." },
@@ -87,6 +91,7 @@ const THEMES = {
   brown: {
     name: "Brown",
     color: "#92400E",
+    caption: "brown is not a real color",
     today: { image: "/emojis/brown-dog.png", label: "today", placeholder: "today I will..." },
     tomorrow: { image: "/emojis/brown-pretzel.png", label: "tomorrow", placeholder: "tomorrow I will..." },
     someday: { image: "/emojis/brown-coffee.png", label: "someday", placeholder: "someday I will..." },
