@@ -820,14 +820,30 @@ function App() {
   const [currentTheme, setCurrentTheme] = useState(() => localStorage.getItem('taskTheme') || 'yellow');
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('darkMode') || 'auto');
   
-  // Guest mode local storage
+  // Guest mode local storage (used for all tasks in STANDALONE_MODE)
   const [guestTasks, setGuestTasks] = useState(() => {
     const saved = localStorage.getItem('guestTasks');
     return saved ? JSON.parse(saved) : [];
   });
 
+  // ============================================================
+  // BACKEND AUTH FUNCTIONS (Only used when STANDALONE_MODE = false)
+  // ============================================================
+  
+  /* STANDALONE_MODE: These functions are commented out for static deployment
+   * Uncomment and set STANDALONE_MODE = false to enable backend features
+   */
+  
   const checkSession = useCallback(async (token) => {
+    // STANDALONE_MODE: Skip backend session check
+    if (STANDALONE_MODE) {
+      setAuthState('unauthenticated');
+      return;
+    }
+    
+    /* Backend session check - uncomment when STANDALONE_MODE = false
     try {
+      const axios = (await import('axios')).default;
       const response = await axios.get(`${API}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -839,16 +855,29 @@ function App() {
       setSessionToken(null);
       setAuthState('unauthenticated');
     }
+    */
+    
+    // For now, just set unauthenticated
+    localStorage.removeItem('sessionToken');
+    setSessionToken(null);
+    setAuthState('unauthenticated');
   }, []);
 
   const handleOAuthCallback = useCallback(async (sessionId) => {
+    // STANDALONE_MODE: Skip OAuth callback
+    if (STANDALONE_MODE) {
+      setAuthState('unauthenticated');
+      return;
+    }
+    
+    /* Backend OAuth callback - uncomment when STANDALONE_MODE = false
     try {
+      const axios = (await import('axios')).default;
       const response = await axios.post(`${API}/auth/session`, { session_id: sessionId }, {
-        withCredentials: true  // Important for cookies
+        withCredentials: true
       });
       const userData = response.data;
       
-      // Get token from response body
       const token = userData.session_token;
       if (token) {
         localStorage.setItem('sessionToken', token);
@@ -863,6 +892,9 @@ function App() {
       toast.error('Failed to sign in. Please try again.');
       setAuthState('unauthenticated');
     }
+    */
+    
+    setAuthState('unauthenticated');
   }, []);
 
   // Check for OAuth callback - session_id comes in URL fragment (hash)
