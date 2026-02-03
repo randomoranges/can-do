@@ -820,13 +820,25 @@ function App() {
     }
   }, []);
 
-  // Check for OAuth callback
+  // Check for OAuth callback - session_id comes in URL fragment (hash)
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const sessionId = urlParams.get('session_id');
+    // Check URL fragment for session_id (format: #session_id=xxx)
+    const hash = window.location.hash;
+    let sessionId = null;
+    
+    if (hash && hash.includes('session_id=')) {
+      const hashParams = new URLSearchParams(hash.substring(1));
+      sessionId = hashParams.get('session_id');
+    }
+    
+    // Also check query params as fallback
+    if (!sessionId) {
+      const urlParams = new URLSearchParams(window.location.search);
+      sessionId = urlParams.get('session_id');
+    }
     
     if (sessionId) {
-      // Clear URL params
+      // Clear URL params/hash
       window.history.replaceState({}, document.title, window.location.pathname);
       handleOAuthCallback(sessionId);
     } else if (sessionToken) {
@@ -844,8 +856,9 @@ function App() {
   }, [sessionToken, checkSession, handleOAuthCallback]);
 
   const handleGoogleLogin = () => {
-    const redirectUri = encodeURIComponent(window.location.origin);
-    window.location.href = `${GOOGLE_OAUTH_URL}?redirect_uri=${redirectUri}`;
+    // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
+    const redirectUrl = encodeURIComponent(window.location.origin);
+    window.location.href = `${EMERGENT_AUTH_URL}?redirect=${redirectUrl}`;
   };
 
   const handleGuestMode = () => {
