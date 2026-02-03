@@ -1510,7 +1510,6 @@ function App() {
           onAddTask={handleAddTask}
           onClearCompleted={handleClearCompleted}
           theme={currentTheme}
-          onRandomTheme={handleRandomTheme}
         />
       ) : (
         <ProfileScreen
@@ -1520,6 +1519,7 @@ function App() {
           onSelectSection={setCurrentSection}
           onOpenSettings={() => setSettingsOpen(true)}
           theme={currentTheme}
+          onRandomTheme={handleRandomTheme}
         />
       )}
 
