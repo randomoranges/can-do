@@ -245,9 +245,26 @@
     background-color: #F5F5F5;
 }
 
+.section-back-header {
+    padding: 1rem 1.5rem;
+    padding-top: 1.5rem;
+}
+
+.section-back-btn {
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #374151;
+    cursor: pointer;
+    background: none;
+    border: none;
+}
+
 .section-header-detail {
-    padding: 1.5rem;
-    padding-top: 2rem;
+    padding: 0 1.5rem;
+    padding-bottom: 1rem;
 }
 
 .section-header-emoji {
