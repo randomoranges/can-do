@@ -174,7 +174,8 @@ const SectionScreen = ({
   onBack, 
   onToggleTask, 
   onEditTask,
-  onAddTask 
+  onAddTask,
+  onClearCompleted
 }) => {
   const config = SECTION_CONFIG[section];
   const sectionTasks = tasks.filter((t) => t.section === section);
@@ -236,11 +237,12 @@ const SectionScreen = ({
       {/* Footer */}
       <div className="screen-footer">
         <button 
-          className="back-btn clear-btn"
-          onClick={onBack}
-          data-testid="section-back-btn"
+          className="clear-completed-btn"
+          onClick={() => onClearCompleted(section)}
+          data-testid="clear-completed-btn"
+          disabled={completedTasks.length === 0}
         >
-          <span className="clear-icon">Tx</span>
+          <span className="clear-icon">T̶x̶</span>
         </button>
         <button 
           className="fab"
