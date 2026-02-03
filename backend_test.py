@@ -192,7 +192,7 @@ def main():
     # Test creating tasks
     personal_success, personal_task = tester.test_create_personal_task()
     work_success, work_task = tester.test_create_work_task()
-    later_success, later_task = tester.test_create_later_task()
+    someday_success, someday_task = tester.test_create_someday_task()
 
     # Test updating tasks if creation was successful
     if personal_success:
