@@ -256,8 +256,8 @@
 }
 
 .section-header-emoji {
-    width: 56px;
-    height: 56px;
+    width: 52px;
+    height: 52px;
     object-fit: contain;
     margin-bottom: 0.75rem;
     cursor: pointer;
@@ -293,22 +293,30 @@
     padding-bottom: 120px;
 }
 
-/* Task Item - Improved for large text */
+/* Task Item - Redesigned for long text and subtasks */
 .task-item {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 0.75rem;
+    gap: 1rem;
     background: #EBEBEB;
     padding: 1rem 1.25rem;
-    border-radius: 9999px;
+    border-radius: 1.25rem;
     cursor: pointer;
     transition: background-color 0.2s ease;
-    min-height: 3.5rem;
+    min-height: 3rem;
 }
 
 .task-item:active {
     background: #E0E0E0;
+}
+
+.task-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 0;
 }
 
 .task-title {
@@ -316,14 +324,62 @@
     font-size: 1.125rem;
     font-weight: 500;
     color: #111827;
-    flex: 1;
     line-height: 1.4;
     word-break: break-word;
-    padding-top: 0.125rem;
+    white-space: pre-wrap;
 }
 
 .task-title.completed {
     color: #9CA3AF;
+    text-decoration: line-through;
+}
+
+/* Subtasks styling */
+.task-subtasks {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    margin-top: 0.25rem;
+    padding-left: 0.5rem;
+    border-left: 2px solid #D1D5DB;
+}
+
+.subtask-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.subtask-checkbox {
+    width: 1.25rem;
+    height: 1.25rem;
+    min-width: 1.25rem;
+    border-radius: 0.375rem;
+    border: 2px solid #9CA3AF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    background: transparent;
+    transition: all 0.2s ease;
+}
+
+.subtask-checkbox.checked {
+    background: #9CA3AF;
+    border-color: #9CA3AF;
+    color: white;
+}
+
+.subtask-title {
+    font-family: 'League Spartan', sans-serif;
+    font-size: 0.9375rem;
+    font-weight: 400;
+    color: #6B7280;
+    line-height: 1.3;
+}
+
+.subtask-title.completed {
+    color: #D1D5DB;
     text-decoration: line-through;
 }
 
@@ -449,23 +505,37 @@
     padding: 1rem 1.5rem 2rem;
 }
 
+/* Textarea for adding tasks - supports multiline */
 .add-task-input {
     width: 100%;
-    padding: 1rem 1.5rem;
+    padding: 1rem 1.25rem;
     background: white;
     border: none;
-    border-radius: 9999px;
+    border-radius: 1.25rem;
     font-family: 'League Spartan', sans-serif;
     font-size: 1.125rem;
     font-weight: 500;
     color: #111827;
     outline: none;
     margin-bottom: 1rem;
-    min-height: 3.5rem;
+    min-height: 4rem;
+    max-height: 12rem;
+    resize: none;
+    overflow-y: auto;
+    line-height: 1.5;
 }
 
 .add-task-input::placeholder {
     color: #9CA3AF;
+}
+
+.add-task-hint {
+    font-family: 'League Spartan', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: #9CA3AF;
+    margin-bottom: 1rem;
+    padding-left: 0.25rem;
 }
 
 .add-task-btn {
@@ -495,19 +565,24 @@
     padding: 1rem 1.5rem 2rem;
 }
 
+/* Textarea for editing tasks - supports multiline */
 .edit-task-input {
     width: 100%;
-    padding: 1rem 1.5rem;
+    padding: 1rem 1.25rem;
     background: #EBEBEB;
     border: none;
-    border-radius: 9999px;
+    border-radius: 1.25rem;
     font-family: 'League Spartan', sans-serif;
     font-size: 1.125rem;
     font-weight: 500;
     color: #111827;
     outline: none;
     margin-bottom: 1rem;
-    min-height: 3.5rem;
+    min-height: 4rem;
+    max-height: 12rem;
+    resize: none;
+    overflow-y: auto;
+    line-height: 1.5;
 }
 
 .section-selector {
