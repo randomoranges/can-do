@@ -56,10 +56,31 @@ html {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
     padding: 0 1.5rem;
+    padding-top: 2.5rem;
     padding-bottom: 3rem;
     background-color: var(--bg-primary);
+}
+
+.landing-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.welcome-text {
+    font-family: 'League Spartan', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.date-text {
+    font-family: 'League Spartan', sans-serif;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: lowercase;
 }
 
 .landing-content {
