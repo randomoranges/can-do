@@ -815,17 +815,17 @@ html {
     padding-bottom: 1.5rem;
 }
 
-/* Textarea for adding tasks - supports multiline */
+/* Textarea for adding tasks */
 .add-task-input {
     width: 100%;
     padding: 1rem 1.25rem;
-    background: white;
+    background: var(--bg-card);
     border: none;
     border-radius: 1.25rem;
     font-family: 'League Spartan', sans-serif;
     font-size: 1rem;
     font-weight: 500;
-    color: #111827;
+    color: var(--text-primary);
     outline: none;
     margin-bottom: 0.75rem;
     min-height: 5rem;
@@ -839,14 +839,14 @@ html {
 }
 
 .add-task-input::placeholder {
-    color: #9CA3AF;
+    color: var(--text-muted);
 }
 
 .add-task-hint {
     font-family: 'League Spartan', sans-serif;
     font-size: 0.8125rem;
     font-weight: 400;
-    color: #9CA3AF;
+    color: var(--text-muted);
     margin-bottom: 1rem;
     padding-left: 0.25rem;
 }
@@ -860,8 +860,8 @@ html {
 
 .add-task-btn {
     padding: 0.875rem 1.75rem;
-    background: #000;
-    color: white;
+    background: var(--text-primary);
+    color: var(--bg-primary);
     border-radius: 9999px;
     font-family: 'League Spartan', sans-serif;
     font-size: 1rem;
@@ -879,8 +879,8 @@ html {
 
 .newline-btn {
     padding: 0.75rem 1rem;
-    background: #EBEBEB;
-    color: #374151;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
     border-radius: 9999px;
     font-family: 'League Spartan', sans-serif;
     font-size: 0.875rem;
@@ -894,7 +894,7 @@ html {
 }
 
 .newline-btn:hover {
-    background: #E0E0E0;
+    background: var(--border-color);
 }
 
 /* ==================== */
