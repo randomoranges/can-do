@@ -33,7 +33,7 @@ class Task(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     title: str
     profile: Literal["personal", "work"]
-    section: Literal["today", "tomorrow", "later"]
+    section: Literal["today", "tomorrow", "someday"]
     completed: bool = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -41,11 +41,11 @@ class Task(BaseModel):
 class TaskCreate(BaseModel):
     title: str
     profile: Literal["personal", "work"]
-    section: Literal["today", "tomorrow", "later"] = "today"
+    section: Literal["today", "tomorrow", "someday"] = "today"
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
-    section: Optional[Literal["today", "tomorrow", "later"]] = None
+    section: Optional[Literal["today", "tomorrow", "someday"]] = None
     completed: Optional[bool] = None
 
 
