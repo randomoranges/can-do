@@ -1211,6 +1211,7 @@ function App() {
           onGoogleLogin={handleGoogleLogin} 
           onGuestMode={handleGuestMode}
           isLoading={false}
+          standaloneMode={STANDALONE_MODE}
         />
       </div>
     );
