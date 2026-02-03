@@ -115,10 +115,143 @@ const THEMES = {
     tomorrow: { image: "/emojis/money-dollar.png", label: "tomorrow", placeholder: "tomorrow I will..." },
     someday: { image: "/emojis/money-face.png", label: "someday", placeholder: "someday I will..." },
   },
+  // New special themes
+  cuddle: {
+    name: "But please I really want someone to cuddle",
+    color: "#F9A8D4",
+    today: { image: "/emojis/pleading-face.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/couch.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/teddy-bear.png", label: "someday", placeholder: "someday I will..." },
+  },
+  goodboy: {
+    name: "Good boy, mad city",
+    color: "#F97316",
+    today: { image: "/emojis/dog.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/cityscape-dusk.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/fire.png", label: "someday", placeholder: "someday I will..." },
+  },
+  faded: {
+    name: "It's 2am and everybody faded",
+    color: "#6366F1",
+    today: { image: "/emojis/two-oclock.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/cigarette.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/milky-way.png", label: "someday", placeholder: "someday I will..." },
+  },
+  blues: {
+    name: "Careless love blues",
+    color: "#3B82F6",
+    today: { image: "/emojis/blue-heart.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/guitar.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/blue-heart.png", label: "someday", placeholder: "someday I will..." },
+  },
+  dreams: {
+    name: "Some dreams coming to fruition",
+    color: "#8B5CF6",
+    today: { image: "/emojis/thought-bubble.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/racing-car.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/grapes.png", label: "someday", placeholder: "someday I will..." },
+  },
+  lipstick: {
+    name: "Lipstick spoiler",
+    color: "#E11D48",
+    today: { image: "/emojis/kiss-mark.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/kiss-mark.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/kiss-mark.png", label: "someday", placeholder: "someday I will..." },
+  },
+  citrus: {
+    name: "Project citrus",
+    color: "#F97316",
+    today: { image: "/emojis/tangerine.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/tangerine.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/tangerine.png", label: "someday", placeholder: "someday I will..." },
+  },
+  shirt: {
+    name: "Bitch! Give back my shirt",
+    color: "#EC4899",
+    today: { image: "/emojis/nail-polish.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/steam-nose.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/tshirt.png", label: "someday", placeholder: "someday I will..." },
+  },
+  monkeys: {
+    name: "Three monkeys",
+    color: "#92400E",
+    today: { image: "/emojis/see-no-evil.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/hear-no-evil.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/speak-no-evil.png", label: "someday", placeholder: "someday I will..." },
+  },
+  smalld: {
+    name: "Small d*ck energy",
+    color: "#7C3AED",
+    today: { image: "/emojis/pinching-hand.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/eggplant.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/battery.png", label: "someday", placeholder: "someday I will..." },
+  },
+  alright: {
+    name: "Alright, alright, alright",
+    color: "#FBBF24",
+    today: { image: "/emojis/thumbs-up.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/thumbs-up.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/thumbs-up.png", label: "someday", placeholder: "someday I will..." },
+  },
+  rocks: {
+    name: "Just rocks",
+    color: "#78716C",
+    today: { image: "/emojis/rock.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/rock.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/rock.png", label: "someday", placeholder: "someday I will..." },
+  },
+  freezing: {
+    name: "It's cold in my veins, I'm below freezing",
+    color: "#0EA5E9",
+    today: { image: "/emojis/scarf.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/snowman.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/cold-face.png", label: "someday", placeholder: "someday I will..." },
+  },
+  softhours: {
+    name: "Soft hours",
+    color: "#64748B",
+    today: { image: "/emojis/cigarette.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/window.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/cloud-rain.png", label: "someday", placeholder: "someday I will..." },
+  },
+  dinner: {
+    name: "Dinner for one",
+    color: "#EF4444",
+    today: { image: "/emojis/kitchen-knife.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/onion.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/crying-face.png", label: "someday", placeholder: "someday I will..." },
+  },
+  almost: {
+    name: "Almost there",
+    color: "#10B981",
+    today: { image: "/emojis/person-walking.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/person-walking.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/person-standing.png", label: "someday", placeholder: "someday I will..." },
+  },
+  cozy: {
+    name: "Cozy vol. 1",
+    color: "#F43F5E",
+    today: { image: "/emojis/rose.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/bathtub.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/people-hugging.png", label: "someday", placeholder: "someday I will..." },
+  },
+  doubt: {
+    name: "When in doubt, fuck.",
+    color: "#A855F7",
+    today: { image: "/emojis/question-mark.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/person-shrugging.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/bed.png", label: "someday", placeholder: "someday I will..." },
+  },
 };
 
 const COLOR_THEMES = ["yellow", "gold", "green", "red", "violet", "blue", "white", "pink", "brown"];
-const SPECIAL_THEMES = ["healthy", "gym", "farm", "money"];
+const SPECIAL_THEMES = [
+  "healthy", "gym", "farm", "money",
+  "cuddle", "goodboy", "faded", "blues", "dreams",
+  "lipstick", "citrus", "shirt", "monkeys", "smalld",
+  "alright", "rocks", "freezing", "softhours", "dinner",
+  "almost", "cozy", "doubt"
+];
 
 const getSectionConfig = (theme, section) => {
   return THEMES[theme]?.[section] || THEMES.yellow[section];
