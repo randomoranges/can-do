@@ -334,22 +334,40 @@ const getSystemTheme = () => {
 };
 
 const triggerConfetti = () => {
-  const duration = 3000;
+  const duration = 4000;
   const end = Date.now() + duration;
+  
+  // All gold color palette
+  const goldColors = ['#FFD700', '#FFC107', '#FFCA28', '#FFB300', '#FFA000', '#DAA520'];
+  
   const frame = () => {
+    // Left side burst
     confetti({
-      particleCount: 3,
+      particleCount: 2,
       angle: 60,
-      spread: 55,
-      origin: { x: 0 },
-      colors: ['#F97316', '#0D9488', '#3D3229', '#FFD700', '#FF69B4']
+      spread: 70,
+      origin: { x: 0, y: 0.6 },
+      colors: goldColors,
+      ticks: 200,
+      gravity: 0.8,
+      decay: 0.94,
+      startVelocity: 30,
+      shapes: ['circle', 'square'],
+      scalar: 1.2
     });
+    // Right side burst
     confetti({
-      particleCount: 3,
+      particleCount: 2,
       angle: 120,
-      spread: 55,
-      origin: { x: 1 },
-      colors: ['#F97316', '#0D9488', '#3D3229', '#FFD700', '#FF69B4']
+      spread: 70,
+      origin: { x: 1, y: 0.6 },
+      colors: goldColors,
+      ticks: 200,
+      gravity: 0.8,
+      decay: 0.94,
+      startVelocity: 30,
+      shapes: ['circle', 'square'],
+      scalar: 1.2
     });
     if (Date.now() < end) {
       requestAnimationFrame(frame);
