@@ -1102,15 +1102,17 @@ function App() {
   };
 
   const handleToggleTask = async (task) => {
-    if (authState === 'guest') {
-      // Local toggle for guest
+    if (authState === 'guest' || STANDALONE_MODE) {
+      // Local toggle for guest/standalone mode
       const updatedTask = { ...task, completed: !task.completed, updated_at: new Date().toISOString() };
       setGuestTasks(prev => prev.map(t => t.id === task.id ? updatedTask : t));
       setTasks(prev => prev.map(t => t.id === task.id ? updatedTask : t));
       return;
     }
     
+    /* Backend task toggle - uncomment when STANDALONE_MODE = false
     try {
+      const axios = (await import('axios')).default;
       const headers = sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
       const response = await axios.patch(`${API}/tasks/${task.id}`, {
         completed: !task.completed,
@@ -1120,6 +1122,7 @@ function App() {
       console.error("Error updating task:", error);
       toast.error("Failed to update task");
     }
+    */
   };
 
   const handleUpdateTask = async (taskId, updates) => {
