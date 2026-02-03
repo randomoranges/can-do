@@ -542,8 +542,10 @@
     max-height: 10rem;
     resize: none;
     overflow-y: auto;
-    line-height: 1.5;
+    line-height: 1.6;
     -webkit-appearance: none;
+    white-space: pre-wrap;
+    word-wrap: break-word;
 }
 
 .add-task-input::placeholder {
