@@ -10,15 +10,44 @@ import {
   DrawerTitle,
   DrawerDescription,
 } from "@/components/ui/drawer";
+import confetti from "canvas-confetti";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-// Section config with image paths
+// Section config with image paths and placeholders
 const SECTION_CONFIG = {
-  today: { image: "/emojis/bee.png", label: "today" },
-  tomorrow: { image: "/emojis/lemon.png", label: "tomorrow" },
-  someday: { image: "/emojis/sunflower.png", label: "someday" },
+  today: { image: "/emojis/bee.png", label: "today", placeholder: "today I will..." },
+  tomorrow: { image: "/emojis/lemon.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+  someday: { image: "/emojis/sunflower.png", label: "someday", placeholder: "someday I will..." },
+};
+
+// Confetti celebration
+const triggerConfetti = () => {
+  const duration = 3000;
+  const end = Date.now() + duration;
+
+  const frame = () => {
+    confetti({
+      particleCount: 3,
+      angle: 60,
+      spread: 55,
+      origin: { x: 0 },
+      colors: ['#F97316', '#0D9488', '#3D3229', '#FFD700', '#FF69B4']
+    });
+    confetti({
+      particleCount: 3,
+      angle: 120,
+      spread: 55,
+      origin: { x: 1 },
+      colors: ['#F97316', '#0D9488', '#3D3229', '#FFD700', '#FF69B4']
+    });
+
+    if (Date.now() < end) {
+      requestAnimationFrame(frame);
+    }
+  };
+  frame();
 };
 
 // Landing Screen
@@ -86,8 +115,7 @@ const ProfileScreen = ({ profile, tasks, onBack, onSelectSection, onOpenSettings
   const profileLabel = profile.charAt(0).toUpperCase() + profile.slice(1);
   
   const getTaskCount = (section) => {
-    const sectionKey = section === "someday" ? "someday" : section;
-    return tasks.filter((t) => t.section === sectionKey && !t.completed).length;
+    return tasks.filter((t) => t.section === section && !t.completed).length;
   };
 
   return (
@@ -182,12 +210,29 @@ const SectionScreen = ({
   const incompleteTasks = sectionTasks.filter((t) => !t.completed);
   const completedTasks = sectionTasks.filter((t) => t.completed);
   const taskCount = incompleteTasks.length;
+  const allTasksCompleted = sectionTasks.length > 0 && incompleteTasks.length === 0;
 
   const [addDrawerOpen, setAddDrawerOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [hasShownConfetti, setHasShownConfetti] = useState(false);
   
   // Swipe to go back
   const [touchStart, setTouchStart] = useState(null);
+  
+  // Trigger confetti when all tasks completed
+  useEffect(() => {
+    if (allTasksCompleted && !hasShownConfetti && completedTasks.length > 0) {
+      triggerConfetti();
+      setHasShownConfetti(true);
+    }
+  }, [allTasksCompleted, hasShownConfetti, completedTasks.length]);
+
+  // Reset confetti flag when tasks change
+  useEffect(() => {
+    if (!allTasksCompleted) {
+      setHasShownConfetti(false);
+    }
+  }, [allTasksCompleted]);
   
   const handleTouchStart = (e) => {
     setTouchStart(e.touches[0].clientX);
@@ -197,7 +242,7 @@ const SectionScreen = ({
     if (!touchStart) return;
     const touchEnd = e.changedTouches[0].clientX;
     const diff = touchEnd - touchStart;
-    if (diff > 100) { // Swipe right to go back
+    if (diff > 100) {
       onBack();
     }
     setTouchStart(null);
@@ -225,6 +270,7 @@ const SectionScreen = ({
           alt={config.label} 
           className="section-header-emoji"
           onClick={onBack}
+          data-testid="section-back-btn"
         />
         <div className="section-header-info">
           <h1 className="section-header-title">{config.label}</h1>
@@ -291,7 +337,7 @@ const SectionScreen = ({
             <input
               type="text"
               className="add-task-input"
-              placeholder="today I will..."
+              placeholder={config.placeholder}
               value={newTaskTitle}
               onChange={(e) => setNewTaskTitle(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAddTask()}
@@ -314,7 +360,7 @@ const SectionScreen = ({
 };
 
 // Edit Task Drawer
-const EditTaskDrawer = ({ open, onClose, task, onUpdate, onDelete, sections }) => {
+const EditTaskDrawer = ({ open, onClose, task, onUpdate, onDelete }) => {
   const [title, setTitle] = useState("");
   const [section, setSection] = useState("today");
   const [taskId, setTaskId] = useState(null);
@@ -381,14 +427,23 @@ const EditTaskDrawer = ({ open, onClose, task, onUpdate, onDelete, sections }) =
             </button>
           </div>
           
-          <button
-            className="delete-btn"
-            onClick={handleDelete}
-            data-testid="delete-task-btn"
-          >
-            <Trash2 size={16} />
-            <span>Delete task</span>
-          </button>
+          {/* Action buttons in bubble design */}
+          <div className="action-buttons">
+            <button
+              className="action-btn"
+              onClick={onClose}
+              data-testid="back-action-btn"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <button
+              className="action-btn delete"
+              onClick={handleDelete}
+              data-testid="delete-task-btn"
+            >
+              <Trash2 size={20} />
+            </button>
+          </div>
         </div>
       </DrawerContent>
     </Drawer>
