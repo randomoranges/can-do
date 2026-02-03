@@ -50,9 +50,28 @@ body {
     }
 }
 
-/* Hide Emergent branding */
+/* Hide Emergent branding - more aggressive selectors */
 [data-emergent-branding],
 .emergent-branding,
-div[class*="emergent"] {
+div[class*="emergent"],
+div[class*="Emergent"],
+a[href*="emergent"],
+div[style*="emergent"],
+.made-with-emergent,
+#emergent-badge,
+[data-testid*="emergent"],
+iframe[src*="emergent"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    width: 0 !important;
+    overflow: hidden !important;
+    position: absolute !important;
+    pointer-events: none !important;
+}
+
+/* Hide any fixed bottom badge */
+body > div:last-child:not(.app-container):not(#root) {
     display: none !important;
 }
