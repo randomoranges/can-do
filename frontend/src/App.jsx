@@ -307,7 +307,9 @@ const SPECIAL_THEMES = [
   "cuddle", "goodboy", "faded", "blues", "dreams",
   "lipstick", "citrus", "shirt", "monkeys", "smalld",
   "alright", "rocks", "freezing", "softhours", "dinner",
-  "almost", "cozy", "doubt"
+  "almost", "cozy", "doubt",
+  "lavender", "luckysperm", "unaccompanied", "october",
+  "procrastinator", "sleep", "burka", "donuts"
 ];
 
 const getSectionConfig = (theme, section) => {
