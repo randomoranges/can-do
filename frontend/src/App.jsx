@@ -242,6 +242,63 @@ const THEMES = {
     tomorrow: { image: "/emojis/person-shrugging.png", label: "tomorrow", placeholder: "tomorrow I will..." },
     someday: { image: "/emojis/bed.png", label: "someday", placeholder: "someday I will..." },
   },
+  // New themes batch 2
+  lavender: {
+    name: "Enchanted lavender sunrise",
+    color: "#A78BFA",
+    today: { image: "/emojis/sparkles.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/hyacinth.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/sunrise.png", label: "someday", placeholder: "someday I will..." },
+  },
+  luckysperm: {
+    name: "Lucky sperm club",
+    color: "#22D3EE",
+    today: { image: "/emojis/crossed-fingers.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/sweat-droplets.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/person-golfing.png", label: "someday", placeholder: "someday I will..." },
+  },
+  unaccompanied: {
+    name: "Unaccompanied Minor",
+    color: "#0EA5E9",
+    today: { image: "/emojis/child.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/airplane.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/label.png", label: "someday", placeholder: "someday I will..." },
+  },
+  october: {
+    name: "October's very own",
+    color: "#F97316",
+    today: { image: "/emojis/fallen-leaf.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/pumpkin.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/owl.png", label: "someday", placeholder: "someday I will..." },
+  },
+  procrastinator: {
+    name: "Chief Procrastinator Officer",
+    color: "#6366F1",
+    today: { image: "/emojis/couch.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/mobile-phone.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/alarm-clock.png", label: "someday", placeholder: "someday I will..." },
+  },
+  sleep: {
+    name: "Ministry of Sleep",
+    color: "#94A3B8",
+    today: { image: "/emojis/sloth.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/koala.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/yawning-face.png", label: "someday", placeholder: "someday I will..." },
+  },
+  burka: {
+    name: "Lipstick under the burka",
+    color: "#1F2937",
+    today: { image: "/emojis/lipstick.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/woman-headscarf.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/black-heart.png", label: "someday", placeholder: "someday I will..." },
+  },
+  donuts: {
+    name: "Trusty donuts",
+    color: "#F472B6",
+    today: { image: "/emojis/doughnut.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/doughnut.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/doughnut.png", label: "someday", placeholder: "someday I will..." },
+  },
 };
 
 const COLOR_THEMES = ["yellow", "gold", "green", "red", "violet", "blue", "white", "pink", "brown"];
