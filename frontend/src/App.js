@@ -1066,8 +1066,8 @@ function App() {
   }, [currentProfile, fetchTasks, authState]);
 
   const handleAddTask = async (title, section) => {
-    if (authState === 'guest') {
-      // Local task creation for guest
+    if (authState === 'guest' || STANDALONE_MODE) {
+      // Local task creation for guest/standalone mode
       const newTask = {
         id: `local_${Date.now()}`,
         title,
@@ -1083,7 +1083,9 @@ function App() {
       return;
     }
     
+    /* Backend task creation - uncomment when STANDALONE_MODE = false
     try {
+      const axios = (await import('axios')).default;
       const headers = sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
       const response = await axios.post(`${API}/tasks`, {
         title,
@@ -1096,6 +1098,7 @@ function App() {
       console.error("Error adding task:", error);
       toast.error("Failed to add task");
     }
+    */
   };
 
   const handleToggleTask = async (task) => {
