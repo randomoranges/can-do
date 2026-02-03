@@ -68,6 +68,37 @@ const triggerConfetti = () => {
   frame();
 };
 
+// Custom Bottom Sheet for mobile - handles keyboard better
+const BottomSheet = ({ open, onClose, children }) => {
+  const sheetRef = useRef(null);
+  
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [open]);
+
+  if (!open) return null;
+
+  return (
+    <div className="bottom-sheet-overlay" onClick={onClose}>
+      <div 
+        ref={sheetRef}
+        className="bottom-sheet-content" 
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="bottom-sheet-handle" />
+        {children}
+      </div>
+    </div>
+  );
+};
+
 // Landing Screen
 const LandingScreen = ({ onSelectProfile }) => {
   return (
