@@ -1,14 +1,14 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import "@/App.css";
 import axios from "axios";
 import { Toaster, toast } from "sonner";
-import { Settings, ArrowLeft, Check, Trash2, X } from "lucide-react";
+import { Settings, ArrowLeft, Check, Trash2, X, Sun, Moon, Monitor } from "lucide-react";
 import confetti from "canvas-confetti";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-// Theme configurations with emoji images
+// Theme configurations - CORRECTED arrangement
 const THEMES = {
   yellow: {
     name: "Yellow",
@@ -20,29 +20,29 @@ const THEMES = {
   gold: {
     name: "Gold",
     color: "#D97706",
-    today: { image: "/emojis/gold-tumbler.png", label: "today", placeholder: "today I will..." },
-    tomorrow: { image: "/emojis/gold-shamrock.png", label: "tomorrow", placeholder: "tomorrow I will..." },
-    someday: { image: "/emojis/gold-rose.png", label: "someday", placeholder: "someday I will..." },
+    today: { image: "/emojis/green-beer.png", label: "today", placeholder: "today I will..." },
+    tomorrow: { image: "/emojis/gold-tumbler.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/gold-clinking.png", label: "someday", placeholder: "someday I will..." },
   },
   green: {
     name: "Green",
     color: "#16A34A",
-    today: { image: "/emojis/green-beer.png", label: "today", placeholder: "today I will..." },
+    today: { image: "/emojis/gold-shamrock.png", label: "today", placeholder: "today I will..." },
     tomorrow: { image: "/emojis/green-plant.png", label: "tomorrow", placeholder: "tomorrow I will..." },
-    someday: { image: "/emojis/green-wine.png", label: "someday", placeholder: "someday I will..." },
+    someday: { image: "/emojis/green-tree.png", label: "someday", placeholder: "someday I will..." },
   },
   red: {
     name: "Red",
     color: "#DC2626",
-    today: { image: "/emojis/red-heart.png", label: "today", placeholder: "today I will..." },
+    today: { image: "/emojis/red-rose.png", label: "today", placeholder: "today I will..." },
     tomorrow: { image: "/emojis/red-wine.png", label: "tomorrow", placeholder: "tomorrow I will..." },
-    someday: { image: "/emojis/red-rose.png", label: "someday", placeholder: "someday I will..." },
+    someday: { image: "/emojis/red-heart.png", label: "someday", placeholder: "someday I will..." },
   },
   violet: {
     name: "Violet",
     color: "#7C3AED",
     today: { image: "/emojis/violet-ok.png", label: "today", placeholder: "today I will..." },
-    tomorrow: { image: "/emojis/violet-raise.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    tomorrow: { image: "/emojis/violet-shrug.png", label: "tomorrow", placeholder: "tomorrow I will..." },
     someday: { image: "/emojis/violet-pregnant.png", label: "someday", placeholder: "someday I will..." },
   },
   blue: {
@@ -63,8 +63,8 @@ const THEMES = {
     name: "Pink",
     color: "#EC4899",
     today: { image: "/emojis/pink-blossom.png", label: "today", placeholder: "today I will..." },
-    tomorrow: { image: "/emojis/pink-perfume.png", label: "tomorrow", placeholder: "tomorrow I will..." },
-    someday: { image: "/emojis/pink-hearts.png", label: "someday", placeholder: "someday I will..." },
+    tomorrow: { image: "/emojis/pink-purse.png", label: "tomorrow", placeholder: "tomorrow I will..." },
+    someday: { image: "/emojis/pink-heart.png", label: "someday", placeholder: "someday I will..." },
   },
   brown: {
     name: "Brown",
@@ -103,21 +103,24 @@ const THEMES = {
   },
 };
 
-// Color themes (basic colors)
 const COLOR_THEMES = ["yellow", "gold", "green", "red", "violet", "blue", "white", "pink", "brown"];
-// Special themes
 const SPECIAL_THEMES = ["healthy", "gym", "farm", "money"];
 
-// Get section config based on current theme
 const getSectionConfig = (theme, section) => {
   return THEMES[theme]?.[section] || THEMES.yellow[section];
 };
 
-// Confetti celebration
+// Dark mode detection
+const getSystemTheme = () => {
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    return 'dark';
+  }
+  return 'light';
+};
+
 const triggerConfetti = () => {
   const duration = 3000;
   const end = Date.now() + duration;
-
   const frame = () => {
     confetti({
       particleCount: 3,
@@ -133,7 +136,6 @@ const triggerConfetti = () => {
       origin: { x: 1 },
       colors: ['#F97316', '#0D9488', '#3D3229', '#FFD700', '#FF69B4']
     });
-
     if (Date.now() < end) {
       requestAnimationFrame(frame);
     }
@@ -141,7 +143,7 @@ const triggerConfetti = () => {
   frame();
 };
 
-// Custom Bottom Sheet for mobile
+// Custom Bottom Sheet
 const BottomSheet = ({ open, onClose, children }) => {
   useEffect(() => {
     if (open) {
@@ -149,19 +151,14 @@ const BottomSheet = ({ open, onClose, children }) => {
     } else {
       document.body.style.overflow = '';
     }
-    return () => {
-      document.body.style.overflow = '';
-    };
+    return () => { document.body.style.overflow = ''; };
   }, [open]);
 
   if (!open) return null;
 
   return (
     <div className="bottom-sheet-overlay" onClick={onClose}>
-      <div 
-        className="bottom-sheet-content" 
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="bottom-sheet-content" onClick={(e) => e.stopPropagation()}>
         <div className="bottom-sheet-handle" />
         {children}
       </div>
@@ -169,50 +166,113 @@ const BottomSheet = ({ open, onClose, children }) => {
   );
 };
 
-// Settings Modal Component
-const SettingsModal = ({ open, onClose, currentTheme, onThemeChange }) => {
+// Settings Modal
+const SettingsModal = ({ 
+  open, 
+  onClose, 
+  currentTheme, 
+  onThemeChange, 
+  darkMode, 
+  onDarkModeChange,
+  currentProfile,
+  onProfileChange
+}) => {
   if (!open) return null;
 
   return (
     <div className="settings-overlay" onClick={onClose}>
       <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
         <div className="settings-header">
-          <h2 className="settings-title">Colors</h2>
+          <h2 className="settings-title">Settings</h2>
           <button className="settings-close" onClick={onClose} data-testid="close-settings">
             <X size={24} />
           </button>
         </div>
         
         <div className="settings-body">
-          {/* Color themes grid */}
-          <div className="theme-grid">
-            {COLOR_THEMES.map((themeKey) => {
-              const theme = THEMES[themeKey];
-              const isActive = currentTheme === themeKey;
-              return (
-                <button
-                  key={themeKey}
-                  className={`theme-option ${isActive ? 'active' : ''}`}
-                  onClick={() => onThemeChange(themeKey)}
-                  data-testid={`theme-${themeKey}`}
-                >
-                  <div className="theme-preview">
-                    <img src={theme.today.image} alt="" className="theme-emoji" />
-                    <img src={theme.tomorrow.image} alt="" className="theme-emoji" />
-                    <img src={theme.someday.image} alt="" className="theme-emoji" />
-                  </div>
-                  <span 
-                    className="theme-dot" 
-                    style={{ backgroundColor: theme.color }}
-                  />
-                </button>
-              );
-            })}
+          {/* Profile Section */}
+          <div className="settings-section">
+            <p className="settings-section-label">Profile</p>
+            <div className="profile-toggle">
+              <button 
+                className={`profile-toggle-btn ${currentProfile === 'personal' ? 'active' : ''}`}
+                onClick={() => onProfileChange('personal')}
+                data-testid="profile-toggle-personal"
+              >
+                <div className="profile-indicator personal" />
+                <span>Personal</span>
+              </button>
+              <button 
+                className={`profile-toggle-btn ${currentProfile === 'work' ? 'active' : ''}`}
+                onClick={() => onProfileChange('work')}
+                data-testid="profile-toggle-work"
+              >
+                <div className="profile-indicator work" />
+                <span>Work</span>
+              </button>
+            </div>
           </div>
 
-          {/* Special themes */}
-          <div className="special-themes">
-            <p className="special-themes-label">Other themes</p>
+          {/* Dark Mode Section */}
+          <div className="settings-section">
+            <p className="settings-section-label">Appearance</p>
+            <div className="appearance-toggle">
+              <button 
+                className={`appearance-btn ${darkMode === 'auto' ? 'active' : ''}`}
+                onClick={() => onDarkModeChange('auto')}
+                data-testid="theme-auto"
+              >
+                <Monitor size={18} />
+                <span>Auto</span>
+              </button>
+              <button 
+                className={`appearance-btn ${darkMode === 'light' ? 'active' : ''}`}
+                onClick={() => onDarkModeChange('light')}
+                data-testid="theme-light"
+              >
+                <Sun size={18} />
+                <span>Light</span>
+              </button>
+              <button 
+                className={`appearance-btn ${darkMode === 'dark' ? 'active' : ''}`}
+                onClick={() => onDarkModeChange('dark')}
+                data-testid="theme-dark"
+              >
+                <Moon size={18} />
+                <span>Dark</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Color Themes Section */}
+          <div className="settings-section">
+            <p className="settings-section-label">Colors</p>
+            <div className="theme-grid">
+              {COLOR_THEMES.map((themeKey) => {
+                const theme = THEMES[themeKey];
+                const isActive = currentTheme === themeKey;
+                return (
+                  <button
+                    key={themeKey}
+                    className={`theme-option ${isActive ? 'active' : ''}`}
+                    onClick={() => onThemeChange(themeKey)}
+                    data-testid={`theme-${themeKey}`}
+                  >
+                    <div className="theme-preview">
+                      <img src={theme.today.image} alt="" className="theme-emoji" />
+                      <img src={theme.tomorrow.image} alt="" className="theme-emoji" />
+                      <img src={theme.someday.image} alt="" className="theme-emoji" />
+                    </div>
+                    <span className="theme-dot" style={{ backgroundColor: theme.color }} />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Special Themes */}
+          <div className="settings-section">
+            <p className="settings-section-label">Other themes</p>
             <div className="special-themes-list">
               {SPECIAL_THEMES.map((themeKey) => {
                 const theme = THEMES[themeKey];
@@ -276,26 +336,16 @@ const LandingScreen = ({ onSelectProfile }) => {
   );
 };
 
-// Section Card Component
+// Section Card
 const SectionCard = ({ section, taskCount, onClick, theme }) => {
   const config = getSectionConfig(theme, section);
   
   return (
-    <div 
-      className="section-card" 
-      onClick={onClick}
-      data-testid={`section-card-${section}`}
-    >
-      <img 
-        src={config.image} 
-        alt={config.label} 
-        className="section-emoji-img"
-      />
+    <div className="section-card" onClick={onClick} data-testid={`section-card-${section}`}>
+      <img src={config.image} alt={config.label} className="section-emoji-img" />
       <div className="section-info">
         <h2 className="section-title">{config.label}</h2>
-        <span className="task-count-badge" data-testid={`count-${section}`}>
-          {taskCount}
-        </span>
+        <span className="task-count-badge" data-testid={`count-${section}`}>{taskCount}</span>
       </div>
     </div>
   );
@@ -304,20 +354,13 @@ const SectionCard = ({ section, taskCount, onClick, theme }) => {
 // Profile Screen
 const ProfileScreen = ({ profile, tasks, onBack, onSelectSection, onOpenSettings, theme }) => {
   const profileLabel = profile.charAt(0).toUpperCase() + profile.slice(1);
-  
-  const getTaskCount = (section) => {
-    return tasks.filter((t) => t.section === section && !t.completed).length;
-  };
+  const getTaskCount = (section) => tasks.filter((t) => t.section === section && !t.completed).length;
 
   return (
     <div className="profile-screen" data-testid="profile-screen">
       <div className="screen-header">
         <h1 className="header-title">{profileLabel}</h1>
-        <button 
-          className="settings-btn"
-          onClick={onOpenSettings}
-          data-testid="settings-btn"
-        >
+        <button className="settings-btn" onClick={onOpenSettings} data-testid="settings-btn">
           <Settings size={28} strokeWidth={1.5} />
         </button>
       </div>
@@ -335,30 +378,18 @@ const ProfileScreen = ({ profile, tasks, onBack, onSelectSection, onOpenSettings
       </div>
 
       <div className="screen-footer">
-        <button 
-          className="back-btn"
-          onClick={onBack}
-          data-testid="back-btn"
-        >
+        <button className="back-btn" onClick={onBack} data-testid="back-btn">
           <ArrowLeft size={24} strokeWidth={2} />
         </button>
-        <button 
-          className="fab"
-          onClick={() => onSelectSection("today")}
-          data-testid="add-task-fab"
-        >
-          <img 
-            src="/emojis/writing-hand.png" 
-            alt="Add task" 
-            className="fab-emoji"
-          />
+        <button className="fab" onClick={() => onSelectSection("today")} data-testid="add-task-fab">
+          <img src="/emojis/writing-hand.png" alt="Add task" className="fab-emoji" />
         </button>
       </div>
     </div>
   );
 };
 
-// Task Item Component
+// Task Item
 const TaskItem = ({ task, onToggle, onEdit }) => {
   const parseTaskContent = (text) => {
     const lines = text.split('\n');
@@ -372,15 +403,9 @@ const TaskItem = ({ task, onToggle, onEdit }) => {
   const { mainTitle, subtasks } = parseTaskContent(task.title);
 
   return (
-    <div
-      className="task-item"
-      onClick={() => onEdit(task)}
-      data-testid={`task-item-${task.id}`}
-    >
+    <div className="task-item" onClick={() => onEdit(task)} data-testid={`task-item-${task.id}`}>
       <div className="task-content">
-        <span className={`task-title ${task.completed ? "completed" : ""}`}>
-          {mainTitle}
-        </span>
+        <span className={`task-title ${task.completed ? "completed" : ""}`}>{mainTitle}</span>
         {subtasks.length > 0 && (
           <div className="task-subtasks">
             {subtasks.map((subtask, index) => (
@@ -388,9 +413,7 @@ const TaskItem = ({ task, onToggle, onEdit }) => {
                 <div className={`subtask-checkbox ${task.completed ? "checked" : ""}`}>
                   {task.completed && <Check size={12} strokeWidth={3} />}
                 </div>
-                <span className={`subtask-title ${task.completed ? "completed" : ""}`}>
-                  {subtask}
-                </span>
+                <span className={`subtask-title ${task.completed ? "completed" : ""}`}>{subtask}</span>
               </div>
             ))}
           </div>
@@ -398,10 +421,7 @@ const TaskItem = ({ task, onToggle, onEdit }) => {
       </div>
       <div
         className={`task-checkbox ${task.completed ? "checked" : ""}`}
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggle(task);
-        }}
+        onClick={(e) => { e.stopPropagation(); onToggle(task); }}
         data-testid={`task-checkbox-${task.id}`}
       >
         {task.completed && <Check size={16} strokeWidth={3} />}
@@ -410,7 +430,7 @@ const TaskItem = ({ task, onToggle, onEdit }) => {
   );
 };
 
-// Empty State Component
+// Empty State
 const EmptyState = ({ section, onAddClick, theme }) => {
   const config = getSectionConfig(theme, section);
   const emptyTexts = {
@@ -421,28 +441,16 @@ const EmptyState = ({ section, onAddClick, theme }) => {
   
   return (
     <div className="empty-state" onClick={onAddClick} data-testid="empty-state">
-      <img 
-        src={config.image} 
-        alt={config.label} 
-        className="empty-state-emoji"
-      />
+      <img src={config.image} alt={config.label} className="empty-state-emoji" />
       <p className="empty-state-text">{emptyTexts[section].text}</p>
       <p className="empty-state-hint">{emptyTexts[section].hint}</p>
     </div>
   );
 };
 
-// Section Detail Screen
+// Section Screen
 const SectionScreen = ({ 
-  profile, 
-  section, 
-  tasks, 
-  onBack, 
-  onToggleTask, 
-  onEditTask,
-  onAddTask,
-  onClearCompleted,
-  theme
+  profile, section, tasks, onBack, onToggleTask, onEditTask, onAddTask, onClearCompleted, theme
 }) => {
   const config = getSectionConfig(theme, section);
   const sectionTasks = tasks.filter((t) => t.section === section);
@@ -465,22 +473,14 @@ const SectionScreen = ({
   }, [allTasksCompleted, hasShownConfetti, completedTasks.length]);
 
   useEffect(() => {
-    if (!allTasksCompleted) {
-      setHasShownConfetti(false);
-    }
+    if (!allTasksCompleted) setHasShownConfetti(false);
   }, [allTasksCompleted]);
   
-  const handleTouchStart = (e) => {
-    setTouchStart(e.touches[0].clientX);
-  };
-  
+  const handleTouchStart = (e) => setTouchStart(e.touches[0].clientX);
   const handleTouchEnd = (e) => {
     if (!touchStart) return;
-    const touchEnd = e.changedTouches[0].clientX;
-    const diff = touchEnd - touchStart;
-    if (diff > 100) {
-      onBack();
-    }
+    const diff = e.changedTouches[0].clientX - touchStart;
+    if (diff > 100) onBack();
     setTouchStart(null);
   };
 
@@ -518,23 +518,12 @@ const SectionScreen = ({
       ) : (
         <div className="task-list">
           {incompleteTasks.map((task) => (
-            <TaskItem
-              key={task.id}
-              task={task}
-              onToggle={onToggleTask}
-              onEdit={onEditTask}
-            />
+            <TaskItem key={task.id} task={task} onToggle={onToggleTask} onEdit={onEditTask} />
           ))}
-
           {completedTasks.length > 0 && (
             <div className="completed-section">
               {completedTasks.map((task) => (
-                <TaskItem
-                  key={task.id}
-                  task={task}
-                  onToggle={onToggleTask}
-                  onEdit={onEditTask}
-                />
+                <TaskItem key={task.id} task={task} onToggle={onToggleTask} onEdit={onEditTask} />
               ))}
             </div>
           )}
@@ -543,32 +532,20 @@ const SectionScreen = ({
 
       <div className="screen-footer">
         <div className="footer-actions-bubble">
-          <button 
-            className="footer-action-btn"
-            onClick={onBack}
-            data-testid="footer-back-btn"
-          >
+          <button className="footer-action-btn" onClick={onBack} data-testid="footer-back-btn">
             <ArrowLeft size={22} strokeWidth={2} />
           </button>
           <button 
-            className="footer-action-btn"
-            onClick={() => onClearCompleted(section)}
+            className="footer-action-btn" 
+            onClick={() => onClearCompleted(section)} 
             data-testid="clear-completed-btn"
             disabled={completedTasks.length === 0}
           >
             <span className="clear-icon">T̶x̶</span>
           </button>
         </div>
-        <button 
-          className="fab"
-          onClick={() => setAddDrawerOpen(true)}
-          data-testid="section-add-fab"
-        >
-          <img 
-            src="/emojis/writing-hand.png" 
-            alt="Add task" 
-            className="fab-emoji"
-          />
+        <button className="fab" onClick={() => setAddDrawerOpen(true)} data-testid="section-add-fab">
+          <img src="/emojis/writing-hand.png" alt="Add task" className="fab-emoji" />
         </button>
       </div>
 
@@ -675,18 +652,10 @@ const EditTaskDrawer = ({ open, onClose, task, onUpdate, onDelete, theme }) => {
         </div>
         
         <div className="action-buttons">
-          <button
-            className="action-btn"
-            onClick={onClose}
-            data-testid="back-action-btn"
-          >
+          <button className="action-btn" onClick={onClose} data-testid="back-action-btn">
             <ArrowLeft size={22} />
           </button>
-          <button
-            className="action-btn delete"
-            onClick={handleDelete}
-            data-testid="delete-task-btn"
-          >
+          <button className="action-btn delete" onClick={handleDelete} data-testid="delete-task-btn">
             <Trash2 size={22} />
           </button>
         </div>
@@ -704,13 +673,53 @@ function App() {
   const [editDrawerOpen, setEditDrawerOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [currentTheme, setCurrentTheme] = useState(() => {
-    return localStorage.getItem('taskTheme') || 'yellow';
-  });
+  
+  const [currentTheme, setCurrentTheme] = useState(() => localStorage.getItem('taskTheme') || 'yellow');
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('darkMode') || 'auto');
+
+  // Apply dark mode
+  useEffect(() => {
+    const applyTheme = () => {
+      let isDark = false;
+      if (darkMode === 'auto') {
+        isDark = getSystemTheme() === 'dark';
+      } else {
+        isDark = darkMode === 'dark';
+      }
+      
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    };
+
+    applyTheme();
+
+    // Listen for system theme changes when in auto mode
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = () => {
+      if (darkMode === 'auto') applyTheme();
+    };
+    mediaQuery.addEventListener('change', handler);
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, [darkMode]);
 
   const handleThemeChange = (theme) => {
     setCurrentTheme(theme);
     localStorage.setItem('taskTheme', theme);
+  };
+
+  const handleDarkModeChange = (mode) => {
+    setDarkMode(mode);
+    localStorage.setItem('darkMode', mode);
+  };
+
+  const handleProfileChangeInSettings = (profile) => {
+    if (profile !== currentProfile) {
+      setCurrentProfile(profile);
+      setCurrentSection(null);
+    }
   };
 
   const fetchTasks = useCallback(async (profile) => {
@@ -799,10 +808,7 @@ function App() {
     setEditDrawerOpen(true);
   };
 
-  const handleBackFromSection = () => {
-    setCurrentSection(null);
-  };
-
+  const handleBackFromSection = () => setCurrentSection(null);
   const handleBackFromProfile = () => {
     setCurrentProfile(null);
     setCurrentSection(null);
@@ -850,10 +856,7 @@ function App() {
 
       <EditTaskDrawer
         open={editDrawerOpen}
-        onClose={() => {
-          setEditDrawerOpen(false);
-          setEditingTask(null);
-        }}
+        onClose={() => { setEditDrawerOpen(false); setEditingTask(null); }}
         task={editingTask}
         onUpdate={handleUpdateTask}
         onDelete={handleDeleteTask}
@@ -865,6 +868,10 @@ function App() {
         onClose={() => setSettingsOpen(false)}
         currentTheme={currentTheme}
         onThemeChange={handleThemeChange}
+        darkMode={darkMode}
+        onDarkModeChange={handleDarkModeChange}
+        currentProfile={currentProfile}
+        onProfileChange={handleProfileChangeInSettings}
       />
     </div>
   );
