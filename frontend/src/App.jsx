@@ -1250,6 +1250,16 @@ function App() {
     localStorage.setItem('taskTheme', theme);
   };
 
+  const handleRandomTheme = () => {
+    const allThemes = [...COLOR_THEMES, ...SPECIAL_THEMES];
+    const otherThemes = allThemes.filter(t => t !== currentTheme);
+    const randomIndex = Math.floor(Math.random() * otherThemes.length);
+    const newTheme = otherThemes[randomIndex];
+    setCurrentTheme(newTheme);
+    localStorage.setItem('taskTheme', newTheme);
+    return newTheme;
+  };
+
   const handleDarkModeChange = (mode) => {
     setDarkMode(mode);
     localStorage.setItem('darkMode', mode);
