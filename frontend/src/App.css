@@ -4,8 +4,9 @@
     margin: 0 auto;
     min-height: 100vh;
     min-height: -webkit-fill-available;
-    background-color: #F5F5F5;
+    background-color: var(--bg-primary);
     position: relative;
+    transition: background-color 0.3s ease;
 }
 
 /* Fix iOS keyboard viewport */
