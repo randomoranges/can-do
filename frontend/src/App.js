@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import "@/App.css";
 import axios from "axios";
 import { Toaster, toast } from "sonner";
-import { Settings, ArrowLeft, Check, Trash2 } from "lucide-react";
+import { Settings, ArrowLeft, Check, Trash2, X } from "lucide-react";
 import {
   Drawer,
   DrawerContent,
