@@ -434,45 +434,39 @@ const SectionScreen = ({
         </button>
       </div>
 
-      {/* Add Task Drawer */}
-      <Drawer open={addDrawerOpen} onOpenChange={setAddDrawerOpen}>
-        <DrawerContent className="add-drawer-content" data-testid="add-task-drawer">
-          <DrawerHeader className="sr-only">
-            <DrawerTitle>Add New Task</DrawerTitle>
-            <DrawerDescription>Create a new task</DrawerDescription>
-          </DrawerHeader>
-          <div className="add-drawer-body">
-            <textarea
-              className="add-task-input"
-              placeholder={config.placeholder}
-              value={newTaskTitle}
-              onChange={(e) => setNewTaskTitle(e.target.value)}
-              autoFocus
-              rows={3}
-              data-testid="add-task-input"
-            />
-            <p className="add-task-hint">Use - at start of line for subtasks</p>
-            <div className="add-drawer-footer">
-              <button
-                className="newline-btn"
-                onClick={() => setNewTaskTitle(prev => prev + '\n- ')}
-                type="button"
-                data-testid="add-subtask-btn"
-              >
-                + subtask
-              </button>
-              <button
-                className="add-task-btn"
-                onClick={handleAddTask}
-                disabled={!newTaskTitle.trim()}
-                data-testid="add-task-submit-btn"
-              >
-                add
-              </button>
-            </div>
+      {/* Add Task Bottom Sheet - Custom for mobile keyboard handling */}
+      <BottomSheet open={addDrawerOpen} onClose={() => setAddDrawerOpen(false)}>
+        <div className="add-sheet-body">
+          <textarea
+            className="add-task-input"
+            placeholder={config.placeholder}
+            value={newTaskTitle}
+            onChange={(e) => setNewTaskTitle(e.target.value)}
+            autoFocus
+            rows={3}
+            data-testid="add-task-input"
+          />
+          <p className="add-task-hint">Use - at start of line for subtasks</p>
+          <div className="add-drawer-footer">
+            <button
+              className="newline-btn"
+              onClick={() => setNewTaskTitle(prev => prev + '\n- ')}
+              type="button"
+              data-testid="add-subtask-btn"
+            >
+              + subtask
+            </button>
+            <button
+              className="add-task-btn"
+              onClick={handleAddTask}
+              disabled={!newTaskTitle.trim()}
+              data-testid="add-task-submit-btn"
+            >
+              add
+            </button>
           </div>
-        </DrawerContent>
-      </Drawer>
+        </div>
+      </BottomSheet>
     </div>
   );
 };
