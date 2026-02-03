@@ -204,10 +204,13 @@ async def create_session(session_req: SessionRequest, response: Response):
             max_age=7 * 24 * 60 * 60  # 7 days
         )
         
-        # Get user doc
+        # Get user doc and include session_token for frontend storage
         user_doc = await db.users.find_one({"user_id": user_id}, {"_id": 0})
         
-        return user_doc
+        return {
+            **user_doc,
+            "session_token": session_token
+        }
         
     except httpx.RequestError as e:
         raise HTTPException(status_code=500, detail=f"Auth service error: {str(e)}")
