@@ -1510,6 +1510,7 @@ function App() {
           onAddTask={handleAddTask}
           onClearCompleted={handleClearCompleted}
           theme={currentTheme}
+          onRandomTheme={handleRandomTheme}
         />
       ) : (
         <ProfileScreen
