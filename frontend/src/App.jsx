@@ -14,7 +14,8 @@ const STANDALONE_MODE = true;
 // ============================================================
 
 // Backend configuration (only used when STANDALONE_MODE = false)
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
+// In Vite, use import.meta.env instead of process.env
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 const API = `${BACKEND_URL}/api`;
 
 // Google OAuth configuration - Emergent Auth (only used when STANDALONE_MODE = false)
