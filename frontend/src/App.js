@@ -1175,15 +1175,17 @@ function App() {
   const handleClearCompleted = async (section) => {
     const completedTasks = tasks.filter((t) => t.section === section && t.completed);
     
-    if (authState === 'guest') {
-      // Local clear for guest
+    if (authState === 'guest' || STANDALONE_MODE) {
+      // Local clear for guest/standalone mode
       setGuestTasks(prev => prev.filter(t => !(t.section === section && t.completed)));
       setTasks(prev => prev.filter(t => !(t.section === section && t.completed)));
       toast.success("Completed tasks cleared!");
       return;
     }
     
+    /* Backend task clearing - uncomment when STANDALONE_MODE = false
     try {
+      const axios = (await import('axios')).default;
       const headers = sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
       await Promise.all(completedTasks.map((t) => axios.delete(`${API}/tasks/${t.id}`, { headers })));
       setTasks(tasks.filter((t) => !(t.section === section && t.completed)));
@@ -1192,6 +1194,7 @@ function App() {
       console.error("Error clearing tasks:", error);
       toast.error("Failed to clear tasks");
     }
+    */
   };
 
   const handleEditTask = (task) => {
