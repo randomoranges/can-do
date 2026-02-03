@@ -358,7 +358,7 @@ const LoginScreen = ({ onGoogleLogin, onGuestMode, isLoading }) => {
         <p className="login-tagline">
           One task at a time,
           <br />
-          you've got this.
+          you&apos;ve got this.
         </p>
       </div>
       
@@ -405,7 +405,7 @@ const LandingScreen = ({ onSelectProfile, userName }) => {
         <p className="landing-tagline">
           One task at a time,
           <br />
-          you've got this.
+          you&apos;ve got this.
         </p>
       </div>
       
