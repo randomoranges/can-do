@@ -5,5 +5,8 @@
   "framework": "create-react-app",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  ],
+  "functions": {
+    "node": "18.x"
+  }
 }
