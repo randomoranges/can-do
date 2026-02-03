@@ -2,11 +2,15 @@ import { useState, useEffect, useCallback } from "react";
 import "@/App.css";
 import axios from "axios";
 import { Toaster, toast } from "sonner";
-import { Settings, ArrowLeft, Check, Trash2, X, Sun, Moon, Monitor } from "lucide-react";
+import { Settings, ArrowLeft, Check, Trash2, X, Sun, Moon, Monitor, LogOut, User } from "lucide-react";
 import confetti from "canvas-confetti";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
+
+// Google OAuth configuration
+const GOOGLE_OAUTH_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/google";
+const REDIRECT_URI = `${window.location.origin}/auth/callback`;
 
 // Theme configurations - CORRECTED arrangement
 const THEMES = {
