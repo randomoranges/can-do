@@ -17,9 +17,27 @@ const API = `${BACKEND_URL}/api`;
 
 // Section config with image paths and placeholders
 const SECTION_CONFIG = {
-  today: { image: "/emojis/bee.png", label: "today", placeholder: "today I will..." },
-  tomorrow: { image: "/emojis/lemon.png", label: "tomorrow", placeholder: "tomorrow I will..." },
-  someday: { image: "/emojis/sunflower.png", label: "someday", placeholder: "someday I will..." },
+  today: { 
+    image: "/emojis/bee.png", 
+    label: "today", 
+    placeholder: "today I will...",
+    emptyText: "No tasks for today",
+    emptyHint: "tap + to add one"
+  },
+  tomorrow: { 
+    image: "/emojis/lemon.png", 
+    label: "tomorrow", 
+    placeholder: "tomorrow I will...",
+    emptyText: "Nothing planned for tomorrow",
+    emptyHint: "tap + to add something"
+  },
+  someday: { 
+    image: "/emojis/sunflower.png", 
+    label: "someday", 
+    placeholder: "someday I will...",
+    emptyText: "No someday tasks yet",
+    emptyHint: "tap + to dream big"
+  },
 };
 
 // Confetti celebration
@@ -194,6 +212,23 @@ const TaskItem = ({ task, onToggle, onEdit }) => {
   );
 };
 
+// Empty State Component
+const EmptyState = ({ section, onAddClick }) => {
+  const config = SECTION_CONFIG[section];
+  
+  return (
+    <div className="empty-state" onClick={onAddClick} data-testid="empty-state">
+      <img 
+        src={config.image} 
+        alt={config.label} 
+        className="empty-state-emoji"
+      />
+      <p className="empty-state-text">{config.emptyText}</p>
+      <p className="empty-state-hint">{config.emptyHint}</p>
+    </div>
+  );
+};
+
 // Section Detail Screen (shows tasks for a section)
 const SectionScreen = ({ 
   profile, 
@@ -211,6 +246,7 @@ const SectionScreen = ({
   const completedTasks = sectionTasks.filter((t) => t.completed);
   const taskCount = incompleteTasks.length;
   const allTasksCompleted = sectionTasks.length > 0 && incompleteTasks.length === 0;
+  const hasNoTasks = sectionTasks.length === 0;
 
   const [addDrawerOpen, setAddDrawerOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
@@ -278,41 +314,54 @@ const SectionScreen = ({
         </div>
       </div>
 
-      {/* Task List */}
-      <div className="task-list">
-        {incompleteTasks.map((task) => (
-          <TaskItem
-            key={task.id}
-            task={task}
-            onToggle={onToggleTask}
-            onEdit={onEditTask}
-          />
-        ))}
+      {/* Task List or Empty State */}
+      {hasNoTasks ? (
+        <EmptyState section={section} onAddClick={() => setAddDrawerOpen(true)} />
+      ) : (
+        <div className="task-list">
+          {incompleteTasks.map((task) => (
+            <TaskItem
+              key={task.id}
+              task={task}
+              onToggle={onToggleTask}
+              onEdit={onEditTask}
+            />
+          ))}
 
-        {completedTasks.length > 0 && (
-          <div className="completed-section">
-            {completedTasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                onToggle={onToggleTask}
-                onEdit={onEditTask}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+          {completedTasks.length > 0 && (
+            <div className="completed-section">
+              {completedTasks.map((task) => (
+                <TaskItem
+                  key={task.id}
+                  task={task}
+                  onToggle={onToggleTask}
+                  onEdit={onEditTask}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* Footer */}
+      {/* Footer - Back and Clear in same bubble */}
       <div className="screen-footer">
-        <button 
-          className="clear-completed-btn"
-          onClick={() => onClearCompleted(section)}
-          data-testid="clear-completed-btn"
-          disabled={completedTasks.length === 0}
-        >
-          <span className="clear-icon">T̶x̶</span>
-        </button>
+        <div className="footer-actions-bubble">
+          <button 
+            className="footer-action-btn"
+            onClick={onBack}
+            data-testid="footer-back-btn"
+          >
+            <ArrowLeft size={22} strokeWidth={2} />
+          </button>
+          <button 
+            className="footer-action-btn"
+            onClick={() => onClearCompleted(section)}
+            data-testid="clear-completed-btn"
+            disabled={completedTasks.length === 0}
+          >
+            <span className="clear-icon">T̶x̶</span>
+          </button>
+        </div>
         <button 
           className="fab"
           onClick={() => setAddDrawerOpen(true)}
@@ -434,14 +483,14 @@ const EditTaskDrawer = ({ open, onClose, task, onUpdate, onDelete }) => {
               onClick={onClose}
               data-testid="back-action-btn"
             >
-              <ArrowLeft size={20} />
+              <ArrowLeft size={22} />
             </button>
             <button
               className="action-btn delete"
               onClick={handleDelete}
               data-testid="delete-task-btn"
             >
-              <Trash2 size={20} />
+              <Trash2 size={22} />
             </button>
           </div>
         </div>
