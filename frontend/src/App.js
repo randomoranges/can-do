@@ -185,6 +185,23 @@ const SectionScreen = ({
 
   const [addDrawerOpen, setAddDrawerOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
+  
+  // Swipe to go back
+  const [touchStart, setTouchStart] = useState(null);
+  
+  const handleTouchStart = (e) => {
+    setTouchStart(e.touches[0].clientX);
+  };
+  
+  const handleTouchEnd = (e) => {
+    if (!touchStart) return;
+    const touchEnd = e.changedTouches[0].clientX;
+    const diff = touchEnd - touchStart;
+    if (diff > 100) { // Swipe right to go back
+      onBack();
+    }
+    setTouchStart(null);
+  };
 
   const handleAddTask = () => {
     if (newTaskTitle.trim()) {
@@ -195,7 +212,23 @@ const SectionScreen = ({
   };
 
   return (
-    <div className="section-screen" data-testid={`section-screen-${section}`}>
+    <div 
+      className="section-screen" 
+      data-testid={`section-screen-${section}`}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Back button header */}
+      <div className="section-back-header">
+        <button 
+          className="section-back-btn"
+          onClick={onBack}
+          data-testid="section-back-btn"
+        >
+          <ArrowLeft size={24} strokeWidth={2} />
+        </button>
+      </div>
+      
       {/* Section Header */}
       <div className="section-header-detail">
         <img 
