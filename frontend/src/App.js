@@ -785,30 +785,22 @@ function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
-  // Check for OAuth callback
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const sessionId = urlParams.get('session_id');
-    
-    if (sessionId) {
-      // Clear URL params
-      window.history.replaceState({}, document.title, window.location.pathname);
-      handleOAuthCallback(sessionId);
-    } else if (sessionToken) {
-      // Try to restore session
-      checkSession();
-    } else {
-      // Check if guest mode
-      const isGuest = localStorage.getItem('isGuest') === 'true';
-      if (isGuest) {
-        setAuthState('guest');
-      } else {
-        setAuthState('unauthenticated');
-      }
+  const checkSession = useCallback(async (token) => {
+    try {
+      const response = await axios.get(`${API}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUser(response.data);
+      setAuthState('authenticated');
+    } catch (error) {
+      console.error('Session check failed:', error);
+      localStorage.removeItem('sessionToken');
+      setSessionToken(null);
+      setAuthState('unauthenticated');
     }
   }, []);
 
-  const handleOAuthCallback = async (sessionId) => {
+  const handleOAuthCallback = useCallback(async (sessionId) => {
     try {
       const response = await axios.post(`${API}/auth/session`, { session_id: sessionId });
       const userData = response.data;
@@ -826,22 +818,30 @@ function App() {
       toast.error('Failed to sign in. Please try again.');
       setAuthState('unauthenticated');
     }
-  };
+  }, []);
 
-  const checkSession = async () => {
-    try {
-      const response = await axios.get(`${API}/auth/me`, {
-        headers: { Authorization: `Bearer ${sessionToken}` }
-      });
-      setUser(response.data);
-      setAuthState('authenticated');
-    } catch (error) {
-      console.error('Session check failed:', error);
-      localStorage.removeItem('sessionToken');
-      setSessionToken(null);
-      setAuthState('unauthenticated');
+  // Check for OAuth callback
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionId = urlParams.get('session_id');
+    
+    if (sessionId) {
+      // Clear URL params
+      window.history.replaceState({}, document.title, window.location.pathname);
+      handleOAuthCallback(sessionId);
+    } else if (sessionToken) {
+      // Try to restore session
+      checkSession(sessionToken);
+    } else {
+      // Check if guest mode
+      const isGuest = localStorage.getItem('isGuest') === 'true';
+      if (isGuest) {
+        setAuthState('guest');
+      } else {
+        setAuthState('unauthenticated');
+      }
     }
-  };
+  }, [sessionToken, checkSession, handleOAuthCallback]);
 
   const handleGoogleLogin = () => {
     const redirectUri = encodeURIComponent(window.location.origin);
