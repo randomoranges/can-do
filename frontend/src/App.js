@@ -411,16 +411,22 @@ const SectionScreen = ({
             <DrawerDescription>Create a new task</DrawerDescription>
           </DrawerHeader>
           <div className="add-drawer-body">
-            <input
-              type="text"
+            <textarea
               className="add-task-input"
               placeholder={config.placeholder}
               value={newTaskTitle}
               onChange={(e) => setNewTaskTitle(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddTask()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleAddTask();
+                }
+              }}
               autoFocus
+              rows={2}
               data-testid="add-task-input"
             />
+            <p className="add-task-hint">Shift+Enter for new line • Use - for subtasks</p>
             <button
               className="add-task-btn"
               onClick={handleAddTask}
