@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import "@/App.css";
+import "./App.css";
 // import axios from "axios"; // STANDALONE_MODE: Commented out - not needed for localStorage-only mode
 import { Toaster, toast } from "sonner";
 import { Settings, ArrowLeft, Check, Trash2, X, Sun, Moon, Monitor, LogOut, User } from "lucide-react";
