@@ -502,6 +502,7 @@ function App() {
           onToggleTask={handleToggleTask}
           onEditTask={handleEditTask}
           onAddTask={handleAddTask}
+          onClearCompleted={handleClearCompleted}
         />
       ) : (
         <ProfileScreen
