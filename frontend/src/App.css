@@ -3,8 +3,26 @@
     max-width: 430px;
     margin: 0 auto;
     min-height: 100vh;
+    min-height: 100dvh;
     background-color: #F5F5F5;
     position: relative;
+}
+
+/* Fix for mobile keyboard pushing content */
+@supports (height: 100dvh) {
+    .app-container {
+        min-height: 100dvh;
+    }
+}
+
+/* Ensure drawer stays visible when keyboard opens */
+[data-vaul-drawer] {
+    --vaul-drawer-height: auto !important;
+}
+
+[data-vaul-drawer-content] {
+    max-height: 85vh !important;
+    max-height: 85dvh !important;
 }
 
 /* Loading Screen */
