@@ -1,26 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import "./App.css";
-// import axios from "axios"; // STANDALONE_MODE: Commented out - not needed for localStorage-only mode
 import { Toaster, toast } from "sonner";
 import { Settings, ArrowLeft, Check, Trash2, X, Sun, Moon, Monitor, LogOut, User } from "lucide-react";
 import confetti from "canvas-confetti";
+import { supabase } from "./supabaseClient";
 
-// ============================================================
-// STANDALONE MODE CONFIGURATION
-// ============================================================
-// Set to `true` for Vercel/static hosting (localStorage only, no backend)
-// Set to `false` to enable full backend + Google Auth features
-const STANDALONE_MODE = true;
-// ============================================================
-
-// Backend configuration (only used when STANDALONE_MODE = false)
-// In Vite, use import.meta.env instead of process.env
+// Backend configuration
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 const API = `${BACKEND_URL}/api`;
-
-// Google OAuth configuration - Emergent Auth (only used when STANDALONE_MODE = false)
-// REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-const EMERGENT_AUTH_URL = "https://auth.emergentagent.com/";
 
 // Theme configurations - CORRECTED arrangement
 const THEMES = {
@@ -579,7 +566,7 @@ const SettingsModal = ({
 };
 
 // Login Screen
-const LoginScreen = ({ onGoogleLogin, onGuestMode, isLoading, standaloneMode }) => {
+const LoginScreen = ({ onGoogleLogin, onGuestMode, isLoading }) => {
   return (
     <div className="login-screen" data-testid="login-screen">
       <div className="login-content">
@@ -590,53 +577,36 @@ const LoginScreen = ({ onGoogleLogin, onGuestMode, isLoading, standaloneMode }) 
           you&apos;ve got this.
         </p>
       </div>
-      
+
       <div className="login-buttons">
-        {/* Google Login - disabled in standalone mode */}
-        {!standaloneMode ? (
-          <button 
-            className="google-login-btn" 
-            onClick={onGoogleLogin}
-            disabled={isLoading}
-            data-testid="google-login-btn"
-          >
-            <svg className="google-icon" viewBox="0 0 24 24" width="20" height="20">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-            </svg>
-            <span>Continue with Google</span>
-          </button>
-        ) : (
-          <button 
-            className="google-login-btn disabled" 
-            disabled={true}
-            data-testid="google-login-btn-disabled"
-          >
-            <svg className="google-icon" viewBox="0 0 24 24" width="20" height="20">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-            </svg>
-            <span>Google Sign-in (Coming Soon)</span>
-          </button>
-        )}
-        
-        <button 
-          className="guest-mode-btn" 
+        <button
+          className="google-login-btn"
+          onClick={onGoogleLogin}
+          disabled={isLoading}
+          data-testid="google-login-btn"
+        >
+          <svg className="google-icon" viewBox="0 0 24 24" width="20" height="20">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          </svg>
+          <span>Continue with Google</span>
+        </button>
+
+        <button
+          className="guest-mode-btn"
           onClick={onGuestMode}
           disabled={isLoading}
           data-testid="guest-mode-btn"
         >
           <User size={20} />
-          <span>{standaloneMode ? 'Get Started' : 'Continue as Guest'}</span>
+          <span>Continue as Guest</span>
         </button>
       </div>
-      
+
       <p className="login-hint">
-        {standaloneMode ? 'Your tasks are saved locally on this device' : 'Guest mode saves tasks locally on this device'}
+        Guest mode saves tasks locally on this device
       </p>
     </div>
   );
@@ -1146,8 +1116,8 @@ function App() {
   // Auth state
   const [authState, setAuthState] = useState('loading'); // 'loading', 'unauthenticated', 'guest', 'authenticated'
   const [user, setUser] = useState(null);
-  const [sessionToken, setSessionToken] = useState(() => localStorage.getItem('sessionToken'));
-  
+  const [supabaseSession, setSupabaseSession] = useState(null);
+
   // App state
   const [currentProfile, setCurrentProfile] = useState(null);
   const [currentSection, setCurrentSection] = useState(null);
@@ -1157,11 +1127,11 @@ function App() {
   const [editingTask, setEditingTask] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showWins, setShowWins] = useState(false);
-  
+
   const [currentTheme, setCurrentTheme] = useState(() => localStorage.getItem('taskTheme') || 'yellow');
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('darkMode') || 'auto');
-  
-  // Guest mode local storage (used for all tasks in STANDALONE_MODE)
+
+  // Guest mode local storage
   const [guestTasks, setGuestTasks] = useState(() => {
     const saved = localStorage.getItem('guestTasks');
     return saved ? JSON.parse(saved) : [];
@@ -1174,138 +1144,75 @@ function App() {
   });
 
   // ============================================================
-  // BACKEND AUTH FUNCTIONS (Only used when STANDALONE_MODE = false)
-  // ============================================================
-  
-  /* STANDALONE_MODE: These functions are commented out for static deployment
-   * Uncomment and set STANDALONE_MODE = false to enable backend features
-   */
-  
-  const checkSession = useCallback(async (token) => {
-    // STANDALONE_MODE: Skip backend session check
-    if (STANDALONE_MODE) {
-      setAuthState('unauthenticated');
-      return;
-    }
-    
-    /* Backend session check - uncomment when STANDALONE_MODE = false
-    try {
-      const axios = (await import('axios')).default;
-      const response = await axios.get(`${API}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setUser(response.data);
-      setAuthState('authenticated');
-    } catch (error) {
-      console.error('Session check failed:', error);
-      localStorage.removeItem('sessionToken');
-      setSessionToken(null);
-      setAuthState('unauthenticated');
-    }
-    */
-    
-    // For now, just set unauthenticated
-    localStorage.removeItem('sessionToken');
-    setSessionToken(null);
-    setAuthState('unauthenticated');
-  }, []);
-
-  const handleOAuthCallback = useCallback(async (sessionId) => {
-    // STANDALONE_MODE: Skip OAuth callback
-    if (STANDALONE_MODE) {
-      setAuthState('unauthenticated');
-      return;
-    }
-    
-    /* Backend OAuth callback - uncomment when STANDALONE_MODE = false
-    try {
-      const axios = (await import('axios')).default;
-      const response = await axios.post(`${API}/auth/session`, { session_id: sessionId }, {
-        withCredentials: true
-      });
-      const userData = response.data;
-      
-      const token = userData.session_token;
-      if (token) {
-        localStorage.setItem('sessionToken', token);
-      }
-      localStorage.removeItem('isGuest');
-      setSessionToken(token);
-      setUser(userData);
-      setAuthState('authenticated');
-      toast.success(`Welcome, ${userData.name}!`);
-    } catch (error) {
-      console.error('OAuth callback error:', error);
-      toast.error('Failed to sign in. Please try again.');
-      setAuthState('unauthenticated');
-    }
-    */
-    
-    setAuthState('unauthenticated');
-  }, []);
-
-  // ============================================================
-  // AUTH STATE INITIALIZATION
+  // SUPABASE AUTH
   // ============================================================
 
-  // Check for OAuth callback - session_id comes in URL fragment (hash)
+  // Helper to get auth headers for backend API calls
+  const getAuthHeaders = useCallback(() => {
+    if (!supabaseSession?.access_token) return {};
+    return { Authorization: `Bearer ${supabaseSession.access_token}` };
+  }, [supabaseSession]);
+
+  // Initialize auth state from Supabase session
   useEffect(() => {
-    // STANDALONE_MODE: Skip OAuth detection, just check for guest mode
-    if (STANDALONE_MODE) {
-      const isGuest = localStorage.getItem('isGuest') === 'true';
-      if (isGuest) {
-        setAuthState('guest');
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setSupabaseSession(session);
+        const meta = session.user.user_metadata;
+        setUser({
+          user_id: session.user.id,
+          email: session.user.email,
+          name: meta?.full_name || meta?.name || session.user.email,
+          picture: meta?.avatar_url || meta?.picture || '',
+        });
+        setAuthState('authenticated');
       } else {
-        setAuthState('unauthenticated');
+        // Check if guest mode
+        const isGuest = localStorage.getItem('isGuest') === 'true';
+        setAuthState(isGuest ? 'guest' : 'unauthenticated');
       }
-      return;
-    }
-    
-    // Check URL fragment for session_id (format: #session_id=xxx)
-    const hash = window.location.hash;
-    let sessionId = null;
-    
-    if (hash && hash.includes('session_id=')) {
-      const hashParams = new URLSearchParams(hash.substring(1));
-      sessionId = hashParams.get('session_id');
-    }
-    
-    // Also check query params as fallback
-    if (!sessionId) {
-      const urlParams = new URLSearchParams(window.location.search);
-      sessionId = urlParams.get('session_id');
-    }
-    
-    if (sessionId) {
-      // Clear URL params/hash
-      window.history.replaceState({}, document.title, window.location.pathname);
-      handleOAuthCallback(sessionId);
-    } else if (sessionToken) {
-      // Try to restore session
-      checkSession(sessionToken);
-    } else {
-      // Check if guest mode
-      const isGuest = localStorage.getItem('isGuest') === 'true';
-      if (isGuest) {
-        setAuthState('guest');
-      } else {
-        setAuthState('unauthenticated');
-      }
-    }
-  }, [sessionToken, checkSession, handleOAuthCallback]);
+    });
 
-  const handleGoogleLogin = () => {
-    // STANDALONE_MODE: Skip Google login
-    if (STANDALONE_MODE) {
-      toast.error('Google login not available in standalone mode');
-      return;
+    // Listen for auth changes (login, logout, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        setSupabaseSession(session);
+        const meta = session.user.user_metadata;
+        setUser({
+          user_id: session.user.id,
+          email: session.user.email,
+          name: meta?.full_name || meta?.name || session.user.email,
+          picture: meta?.avatar_url || meta?.picture || '',
+        });
+        localStorage.removeItem('isGuest');
+        setAuthState('authenticated');
+      } else if (authState !== 'guest') {
+        setSupabaseSession(null);
+        setUser(null);
+        setAuthState('unauthenticated');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleGoogleLogin = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+      if (error) {
+        console.error('Google login error:', error);
+        toast.error('Failed to sign in with Google');
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      toast.error('Failed to sign in');
     }
-    
-    /* Backend Google login - uncomment when STANDALONE_MODE = false
-    // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-    const redirectUrl = encodeURIComponent(window.location.origin);
-    window.location.href = `${EMERGENT_AUTH_URL}?redirect=${redirectUrl}`;
-    */
   };
 
   const handleGuestMode = () => {
@@ -1314,23 +1221,13 @@ function App() {
   };
 
   const handleLogout = async () => {
-    if (authState === 'authenticated' && sessionToken && !STANDALONE_MODE) {
-      /* Backend logout - uncomment when STANDALONE_MODE = false
-      try {
-        const axios = (await import('axios')).default;
-        await axios.post(`${API}/auth/logout`, {}, {
-          headers: { Authorization: `Bearer ${sessionToken}` }
-        });
-      } catch (error) {
-        console.error('Logout error:', error);
-      }
-      */
+    if (authState === 'authenticated') {
+      await supabase.auth.signOut();
     }
-    
+
     // Clear all auth state
-    localStorage.removeItem('sessionToken');
     localStorage.removeItem('isGuest');
-    setSessionToken(null);
+    setSupabaseSession(null);
     setUser(null);
     setCurrentProfile(null);
     setCurrentSection(null);
@@ -1402,44 +1299,90 @@ function App() {
     }
   }, [guestTasks, authState]);
 
-  // Save wins to localStorage
+  // Save wins to localStorage (for guest mode)
   useEffect(() => {
-    localStorage.setItem('wins', JSON.stringify(wins));
-  }, [wins]);
+    if (authState === 'guest') {
+      localStorage.setItem('wins', JSON.stringify(wins));
+    }
+  }, [wins, authState]);
 
-  const addWin = useCallback((task) => {
-    const win = {
-      id: `win_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      task: task.title.split('\n')[0],
-      completed_at: new Date().toISOString(),
-    };
-    setWins(prev => [...prev, win]);
-  }, []);
+  const addWin = useCallback(async (task) => {
+    const winTitle = task.title.split('\n')[0];
+    const completedAt = new Date().toISOString();
+
+    if (authState === 'authenticated') {
+      // Save to backend
+      try {
+        const response = await fetch(`${API}/wins`, {
+          method: 'POST',
+          headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ task: winTitle, completed_at: completedAt }),
+        });
+        if (response.ok) {
+          const win = await response.json();
+          setWins(prev => [win, ...prev]);
+        }
+      } catch (err) {
+        console.error('Failed to save win:', err);
+      }
+    } else {
+      // Guest mode - save locally
+      const win = {
+        id: `win_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        task: winTitle,
+        completed_at: completedAt,
+      };
+      setWins(prev => [win, ...prev]);
+    }
+  }, [authState, getAuthHeaders]);
+
+  // Fetch wins for authenticated users
+  const fetchWins = useCallback(async () => {
+    if (authState !== 'authenticated') return;
+    try {
+      const response = await fetch(`${API}/wins`, { headers: getAuthHeaders() });
+      if (response.ok) {
+        const data = await response.json();
+        setWins(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch wins:', err);
+    }
+  }, [authState, getAuthHeaders]);
+
+  // Load wins when authenticated
+  useEffect(() => {
+    if (authState === 'authenticated') {
+      fetchWins();
+    }
+  }, [authState, fetchWins]);
 
   const fetchTasks = useCallback(async (profile) => {
     if (!profile) return;
-    
-    if (authState === 'guest' || STANDALONE_MODE) {
-      // For guest mode or standalone mode, filter from local tasks
+
+    if (authState === 'guest') {
       setTasks(guestTasks.filter(t => t.profile === profile));
       return;
     }
-    
-    /* Backend task fetching - uncomment when STANDALONE_MODE = false
-    setLoading(true);
-    try {
-      const axios = (await import('axios')).default;
-      const headers = sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
-      const response = await axios.get(`${API}/tasks/${profile}`, { headers });
-      setTasks(response.data);
-    } catch (error) {
-      console.error("Error fetching tasks:", error);
-      toast.error("Failed to load tasks");
-    } finally {
-      setLoading(false);
+
+    if (authState === 'authenticated') {
+      setLoading(true);
+      try {
+        const response = await fetch(`${API}/tasks/${profile}`, { headers: getAuthHeaders() });
+        if (response.ok) {
+          const data = await response.json();
+          setTasks(data);
+        } else {
+          toast.error("Failed to load tasks");
+        }
+      } catch (error) {
+        console.error("Error fetching tasks:", error);
+        toast.error("Failed to load tasks");
+      } finally {
+        setLoading(false);
+      }
     }
-    */
-  }, [authState, sessionToken, guestTasks]);
+  }, [authState, getAuthHeaders, guestTasks]);
 
   useEffect(() => {
     if (currentProfile && (authState === 'authenticated' || authState === 'guest')) {
@@ -1448,8 +1391,7 @@ function App() {
   }, [currentProfile, fetchTasks, authState]);
 
   const handleAddTask = async (title, section) => {
-    if (authState === 'guest' || STANDALONE_MODE) {
-      // Local task creation for guest/standalone mode
+    if (authState === 'guest') {
       const newTask = {
         id: `local_${Date.now()}`,
         title,
@@ -1464,123 +1406,127 @@ function App() {
       toast.success("Task added!");
       return;
     }
-    
-    /* Backend task creation - uncomment when STANDALONE_MODE = false
+
     try {
-      const axios = (await import('axios')).default;
-      const headers = sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
-      const response = await axios.post(`${API}/tasks`, {
-        title,
-        profile: currentProfile,
-        section,
-      }, { headers });
-      setTasks([...tasks, response.data]);
-      toast.success("Task added!");
+      const response = await fetch(`${API}/tasks`, {
+        method: 'POST',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, profile: currentProfile, section }),
+      });
+      if (response.ok) {
+        const newTask = await response.json();
+        setTasks(prev => [...prev, newTask]);
+        toast.success("Task added!");
+      } else {
+        toast.error("Failed to add task");
+      }
     } catch (error) {
       console.error("Error adding task:", error);
       toast.error("Failed to add task");
     }
-    */
   };
 
   const handleToggleTask = async (task) => {
-    if (authState === 'guest' || STANDALONE_MODE) {
-      // Local toggle for guest/standalone mode
+    if (authState === 'guest') {
       const updatedTask = { ...task, completed: !task.completed, updated_at: new Date().toISOString() };
       setGuestTasks(prev => prev.map(t => t.id === task.id ? updatedTask : t));
       setTasks(prev => prev.map(t => t.id === task.id ? updatedTask : t));
-      // Save to Wins when completing (not uncompleting)
-      if (!task.completed) {
-        addWin(task);
-      }
+      if (!task.completed) addWin(task);
       return;
     }
-    
-    /* Backend task toggle - uncomment when STANDALONE_MODE = false
+
     try {
-      const axios = (await import('axios')).default;
-      const headers = sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
-      const response = await axios.patch(`${API}/tasks/${task.id}`, {
-        completed: !task.completed,
-      }, { headers });
-      setTasks(tasks.map((t) => (t.id === task.id ? response.data : t)));
+      const response = await fetch(`${API}/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completed: !task.completed }),
+      });
+      if (response.ok) {
+        const updated = await response.json();
+        setTasks(prev => prev.map(t => t.id === task.id ? updated : t));
+        if (!task.completed) addWin(task);
+      } else {
+        toast.error("Failed to update task");
+      }
     } catch (error) {
       console.error("Error updating task:", error);
       toast.error("Failed to update task");
     }
-    */
   };
 
   const handleUpdateTask = async (taskId, updates) => {
-    if (authState === 'guest' || STANDALONE_MODE) {
-      // Local update for guest/standalone mode
+    if (authState === 'guest') {
       const updatedTask = { ...tasks.find(t => t.id === taskId), ...updates, updated_at: new Date().toISOString() };
       setGuestTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
       setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
       toast.success("Task updated!");
       return;
     }
-    
-    /* Backend task update - uncomment when STANDALONE_MODE = false
+
     try {
-      const axios = (await import('axios')).default;
-      const headers = sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
-      const response = await axios.patch(`${API}/tasks/${taskId}`, updates, { headers });
-      setTasks(tasks.map((t) => (t.id === taskId ? response.data : t)));
-      toast.success("Task updated!");
+      const response = await fetch(`${API}/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      if (response.ok) {
+        const updated = await response.json();
+        setTasks(prev => prev.map(t => t.id === taskId ? updated : t));
+        toast.success("Task updated!");
+      } else {
+        toast.error("Failed to update task");
+      }
     } catch (error) {
       console.error("Error updating task:", error);
       toast.error("Failed to update task");
     }
-    */
   };
 
   const handleDeleteTask = async (taskId) => {
-    if (authState === 'guest' || STANDALONE_MODE) {
-      // Local delete for guest/standalone mode
+    if (authState === 'guest') {
       setGuestTasks(prev => prev.filter(t => t.id !== taskId));
       setTasks(prev => prev.filter(t => t.id !== taskId));
       toast.success("Task deleted!");
       return;
     }
-    
-    /* Backend task deletion - uncomment when STANDALONE_MODE = false
+
     try {
-      const axios = (await import('axios')).default;
-      const headers = sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
-      await axios.delete(`${API}/tasks/${taskId}`, { headers });
-      setTasks(tasks.filter((t) => t.id !== taskId));
-      toast.success("Task deleted!");
+      const response = await fetch(`${API}/tasks/${taskId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      if (response.ok) {
+        setTasks(prev => prev.filter(t => t.id !== taskId));
+        toast.success("Task deleted!");
+      } else {
+        toast.error("Failed to delete task");
+      }
     } catch (error) {
       console.error("Error deleting task:", error);
       toast.error("Failed to delete task");
     }
-    */
   };
 
   const handleClearCompleted = async (section) => {
     const completedTasks = tasks.filter((t) => t.section === section && t.completed);
-    
-    if (authState === 'guest' || STANDALONE_MODE) {
-      // Local clear for guest/standalone mode
+
+    if (authState === 'guest') {
       setGuestTasks(prev => prev.filter(t => !(t.section === section && t.completed)));
       setTasks(prev => prev.filter(t => !(t.section === section && t.completed)));
       toast.success("Completed tasks cleared!");
       return;
     }
-    
-    /* Backend task clearing - uncomment when STANDALONE_MODE = false
+
     try {
-      const axios = (await import('axios')).default;
-      const headers = sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
-      await Promise.all(completedTasks.map((t) => axios.delete(`${API}/tasks/${t.id}`, { headers })));
-      setTasks(tasks.filter((t) => !(t.section === section && t.completed)));
+      await Promise.all(completedTasks.map(t =>
+        fetch(`${API}/tasks/${t.id}`, { method: 'DELETE', headers: getAuthHeaders() })
+      ));
+      setTasks(prev => prev.filter(t => !(t.section === section && t.completed)));
       toast.success("Completed tasks cleared!");
     } catch (error) {
       console.error("Error clearing tasks:", error);
       toast.error("Failed to clear tasks");
     }
-    */
   };
 
   const handleEditTask = (task) => {
@@ -1611,11 +1557,10 @@ function App() {
     return (
       <div className="app-container">
         <Toaster position="top-center" richColors />
-        <LoginScreen 
-          onGoogleLogin={handleGoogleLogin} 
+        <LoginScreen
+          onGoogleLogin={handleGoogleLogin}
           onGuestMode={handleGuestMode}
           isLoading={false}
-          standaloneMode={STANDALONE_MODE}
         />
       </div>
     );
