@@ -583,7 +583,7 @@ const LoginScreen = ({ onGoogleLogin, onGuestMode, isLoading, standaloneMode }) 
   return (
     <div className="login-screen" data-testid="login-screen">
       <div className="login-content">
-        <h1 className="login-title">can-do</h1>
+        <h1 className="login-title">DoIt</h1>
         <p className="login-tagline">
           One task at a time,
           <br />
@@ -710,8 +710,103 @@ const SectionCard = ({ section, taskCount, onClick, theme }) => {
   );
 };
 
+// Wins Screen
+const WinsScreen = ({ wins, onBack }) => {
+  const [filter, setFilter] = useState('all');
+
+  const filterWins = (wins) => {
+    const now = new Date();
+    switch (filter) {
+      case 'today': {
+        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        return wins.filter(w => new Date(w.completed_at) >= startOfDay);
+      }
+      case 'week': {
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - now.getDay());
+        startOfWeek.setHours(0, 0, 0, 0);
+        return wins.filter(w => new Date(w.completed_at) >= startOfWeek);
+      }
+      case 'month': {
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        return wins.filter(w => new Date(w.completed_at) >= startOfMonth);
+      }
+      default:
+        return wins;
+    }
+  };
+
+  const formatWinDate = (dateStr) => {
+    const date = new Date(dateStr);
+    const options = { month: 'short', day: 'numeric', year: 'numeric' };
+    const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
+    return `${date.toLocaleDateString('en-US', options)} \u2022 ${date.toLocaleTimeString('en-US', timeOptions)}`;
+  };
+
+  const filteredWins = filterWins([...wins].sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at)));
+  const filters = [
+    { key: 'all', label: 'All' },
+    { key: 'today', label: 'Today' },
+    { key: 'week', label: 'This Week' },
+    { key: 'month', label: 'This Month' },
+  ];
+
+  return (
+    <div className="wins-screen" data-testid="wins-screen">
+      <div className="wins-header">
+        <button className="wins-back-btn" onClick={onBack} data-testid="wins-back-btn">
+          <ArrowLeft size={24} strokeWidth={2} />
+        </button>
+      </div>
+
+      <div className="wins-hero">
+        <div className="wins-hero-card">
+          <img src="/emojis/raising-hands.png" alt="Wins" className="wins-hero-emoji" />
+          <p className="wins-hero-text">Every done task lives here. Proof you showed up.</p>
+        </div>
+      </div>
+
+      <div className="wins-filters">
+        {filters.map(f => (
+          <button
+            key={f.key}
+            className={`wins-filter-btn ${filter === f.key ? 'active' : ''}`}
+            onClick={() => setFilter(f.key)}
+            data-testid={`wins-filter-${f.key}`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="wins-list">
+        {filteredWins.length === 0 ? (
+          <div className="wins-empty">
+            <p className="wins-empty-text">
+              {filter === 'all' ? 'No wins yet. Go check off a task!' : 'No wins in this period.'}
+            </p>
+          </div>
+        ) : (
+          filteredWins.map((win) => (
+            <div key={win.id} className="wins-card" data-testid={`win-card-${win.id}`}>
+              <div className="wins-card-content">
+                <span className="wins-task-title">{win.task} ☑️</span>
+                <span className="wins-task-date">{formatWinDate(win.completed_at)}</span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="wins-count-footer">
+        <span className="wins-total">{filteredWins.length} win{filteredWins.length !== 1 ? 's' : ''}</span>
+      </div>
+    </div>
+  );
+};
+
 // Profile Screen
-const ProfileScreen = ({ profile, tasks, onBack, onSelectSection, onOpenSettings, theme, onRandomTheme }) => {
+const ProfileScreen = ({ profile, tasks, onBack, onSelectSection, onOpenSettings, theme, onRandomTheme, onOpenWins }) => {
   const profileLabel = profile.charAt(0).toUpperCase() + profile.slice(1);
   const getTaskCount = (section) => tasks.filter((t) => t.section === section && !t.completed).length;
   const [themeTooltip, setThemeTooltip] = useState(null);
@@ -758,6 +853,9 @@ const ProfileScreen = ({ profile, tasks, onBack, onSelectSection, onOpenSettings
         <div className="fab-group">
           <button className="fab" onClick={handleRandomTheme} data-testid="random-theme-btn">
             <img src="/emojis/dice.png" alt="Random theme" className="fab-emoji" />
+          </button>
+          <button className="fab" onClick={onOpenWins} data-testid="wins-btn">
+            <img src="/emojis/raising-hands.png" alt="Wins" className="fab-emoji" />
           </button>
           <button className="fab" onClick={() => onSelectSection("today")} data-testid="add-task-fab">
             <img src="/emojis/writing-hand.png" alt="Add task" className="fab-emoji" />
@@ -1058,6 +1156,7 @@ function App() {
   const [editDrawerOpen, setEditDrawerOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showWins, setShowWins] = useState(false);
   
   const [currentTheme, setCurrentTheme] = useState(() => localStorage.getItem('taskTheme') || 'yellow');
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('darkMode') || 'auto');
@@ -1065,6 +1164,12 @@ function App() {
   // Guest mode local storage (used for all tasks in STANDALONE_MODE)
   const [guestTasks, setGuestTasks] = useState(() => {
     const saved = localStorage.getItem('guestTasks');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Wins - permanent log of completed tasks
+  const [wins, setWins] = useState(() => {
+    const saved = localStorage.getItem('wins');
     return saved ? JSON.parse(saved) : [];
   });
 
@@ -1297,6 +1402,20 @@ function App() {
     }
   }, [guestTasks, authState]);
 
+  // Save wins to localStorage
+  useEffect(() => {
+    localStorage.setItem('wins', JSON.stringify(wins));
+  }, [wins]);
+
+  const addWin = useCallback((task) => {
+    const win = {
+      id: `win_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      task: task.title.split('\n')[0],
+      completed_at: new Date().toISOString(),
+    };
+    setWins(prev => [...prev, win]);
+  }, []);
+
   const fetchTasks = useCallback(async (profile) => {
     if (!profile) return;
     
@@ -1370,6 +1489,10 @@ function App() {
       const updatedTask = { ...task, completed: !task.completed, updated_at: new Date().toISOString() };
       setGuestTasks(prev => prev.map(t => t.id === task.id ? updatedTask : t));
       setTasks(prev => prev.map(t => t.id === task.id ? updatedTask : t));
+      // Save to Wins when completing (not uncompleting)
+      if (!task.completed) {
+        addWin(task);
+      }
       return;
     }
     
@@ -1512,9 +1635,14 @@ function App() {
     <div className="app-container">
       <Toaster position="top-center" richColors />
       
-      {!currentProfile ? (
-        <LandingScreen 
-          onSelectProfile={setCurrentProfile} 
+      {showWins ? (
+        <WinsScreen
+          wins={wins}
+          onBack={() => setShowWins(false)}
+        />
+      ) : !currentProfile ? (
+        <LandingScreen
+          onSelectProfile={setCurrentProfile}
           userName={user?.name}
         />
       ) : currentSection ? (
@@ -1538,6 +1666,7 @@ function App() {
           onOpenSettings={() => setSettingsOpen(true)}
           theme={currentTheme}
           onRandomTheme={handleRandomTheme}
+          onOpenWins={() => setShowWins(true)}
         />
       )}
 

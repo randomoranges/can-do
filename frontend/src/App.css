@@ -1332,3 +1332,170 @@ html.dark .action-btn.delete:hover {
 html.dark .logout-btn:hover {
     background: rgba(239, 68, 68, 0.2);
 }
+
+/* ==================== */
+/* WINS SCREEN */
+/* ==================== */
+.wins-screen {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--bg-primary);
+    padding-bottom: 2rem;
+}
+
+.wins-header {
+    display: flex;
+    align-items: center;
+    padding: 1.5rem;
+    padding-top: 2rem;
+}
+
+.wins-back-btn {
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    cursor: pointer;
+    background: none;
+    border: none;
+}
+
+.wins-hero {
+    padding: 0 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.wins-hero-card {
+    background: var(--bg-card);
+    border-radius: 1.5rem;
+    padding: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1rem;
+}
+
+.wins-hero-emoji {
+    width: 56px;
+    height: 56px;
+    object-fit: contain;
+}
+
+.wins-hero-text {
+    font-family: 'League Spartan', sans-serif;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #16A34A;
+    line-height: 1.4;
+}
+
+/* Wins Filters */
+.wins-filters {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0 1.5rem;
+    margin-bottom: 1.25rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.wins-filters::-webkit-scrollbar {
+    display: none;
+}
+
+.wins-filter-btn {
+    padding: 0.625rem 1rem;
+    background: var(--bg-secondary);
+    border: 2px solid transparent;
+    border-radius: 9999px;
+    font-family: 'League Spartan', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.wins-filter-btn:hover {
+    background: var(--border-color);
+}
+
+.wins-filter-btn.active {
+    border-color: var(--text-primary);
+    color: var(--text-primary);
+}
+
+/* Wins List */
+.wins-list {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0 1.5rem;
+}
+
+/* Wins Card */
+.wins-card {
+    background: var(--bg-secondary);
+    border-radius: 1.25rem;
+    padding: 1rem 1.25rem;
+    transition: background-color 0.2s ease;
+}
+
+.wins-card-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.wins-task-title {
+    font-family: 'League Spartan', sans-serif;
+    font-size: 1.0625rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.wins-task-date {
+    font-family: 'League Spartan', sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
+/* Wins Empty State */
+.wins-empty {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1.5rem;
+    text-align: center;
+}
+
+.wins-empty-text {
+    font-family: 'League Spartan', sans-serif;
+    font-size: 1.125rem;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+/* Wins Count Footer */
+.wins-count-footer {
+    padding: 1.25rem 1.5rem 0;
+    text-align: center;
+}
+
+.wins-total {
+    font-family: 'League Spartan', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
