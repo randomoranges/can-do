@@ -145,10 +145,12 @@ html {
 /* PROFILE SCREEN */
 /* ==================== */
 .profile-screen {
-    min-height: 100vh;
+    height: 100vh;
+    height: -webkit-fill-available;
     display: flex;
     flex-direction: column;
     background-color: var(--bg-primary);
+    overflow: hidden;
 }
 
 /* Screen Header */
@@ -158,6 +160,7 @@ html {
     justify-content: space-between;
     padding: 1.5rem;
     padding-top: 2rem;
+    flex-shrink: 0;
 }
 
 .header-title {
@@ -186,6 +189,13 @@ html {
     flex-direction: column;
     gap: 0.75rem;
     padding: 0 1.5rem;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 1rem;
+}
+
+.sections-container::-webkit-scrollbar {
+    display: none;
 }
 
 /* Section Card */
@@ -242,9 +252,12 @@ html {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 1.5rem;
+    padding: 1rem 1.5rem;
     padding-bottom: 2rem;
-    background-color: var(--bg-primary);
+    background: rgba(var(--bg-primary-rgb), 0.7);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    flex-shrink: 0;
 }
 
 .back-btn {
@@ -352,15 +365,18 @@ html.dark .theme-tooltip {
 /* SECTION DETAIL SCREEN */
 /* ==================== */
 .section-screen {
-    min-height: 100vh;
+    height: 100vh;
+    height: -webkit-fill-available;
     display: flex;
     flex-direction: column;
     background-color: var(--bg-primary);
+    overflow: hidden;
 }
 
 .section-header-detail {
     padding: 1.5rem;
     padding-top: 2rem;
+    flex-shrink: 0;
 }
 
 .section-header-emoji {
@@ -398,7 +414,13 @@ html.dark .theme-tooltip {
     flex-direction: column;
     gap: 0.5rem;
     padding: 0 1.5rem;
-    padding-bottom: 120px;
+    padding-bottom: 1rem;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.task-list::-webkit-scrollbar {
+    display: none;
 }
 
 /* Task Item */
@@ -531,6 +553,7 @@ html.dark .theme-tooltip {
     justify-content: center;
     padding: 2rem 1.5rem;
     text-align: center;
+    overflow-y: auto;
 }
 
 .empty-state-emoji {
@@ -1337,11 +1360,12 @@ html.dark .logout-btn:hover {
 /* WINS SCREEN */
 /* ==================== */
 .wins-screen {
-    min-height: 100vh;
+    height: 100vh;
+    height: -webkit-fill-available;
     display: flex;
     flex-direction: column;
     background-color: var(--bg-primary);
-    padding-bottom: 2rem;
+    overflow: hidden;
 }
 
 .wins-header {
@@ -1349,6 +1373,7 @@ html.dark .logout-btn:hover {
     align-items: center;
     padding: 1.5rem;
     padding-top: 2rem;
+    flex-shrink: 0;
 }
 
 .wins-back-btn {
@@ -1366,6 +1391,7 @@ html.dark .logout-btn:hover {
 .wins-hero {
     padding: 0 1.5rem;
     margin-bottom: 1.5rem;
+    flex-shrink: 0;
 }
 
 .wins-hero-card {
@@ -1401,6 +1427,7 @@ html.dark .logout-btn:hover {
     margin-bottom: 1.25rem;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    flex-shrink: 0;
 }
 
 .wins-filters::-webkit-scrollbar {
@@ -1438,6 +1465,13 @@ html.dark .logout-btn:hover {
     flex-direction: column;
     gap: 0.5rem;
     padding: 0 1.5rem;
+    padding-bottom: 1rem;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.wins-list::-webkit-scrollbar {
+    display: none;
 }
 
 /* Wins Card */
@@ -1489,8 +1523,13 @@ html.dark .logout-btn:hover {
 
 /* Wins Count Footer */
 .wins-count-footer {
-    padding: 1.25rem 1.5rem 0;
+    padding: 1rem 1.5rem;
+    padding-bottom: 2rem;
     text-align: center;
+    background: rgba(var(--bg-primary-rgb), 0.7);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    flex-shrink: 0;
 }
 
 .wins-total {
