@@ -7,6 +7,7 @@
 /* Light mode (default) */
 :root {
     --bg-primary: #F5F5F5;
+    --bg-primary-rgb: 245, 245, 245;
     --bg-secondary: #EBEBEB;
     --bg-card: #FFFFFF;
     --text-primary: #111827;
@@ -18,6 +19,7 @@
 /* Dark mode */
 html.dark {
     --bg-primary: #1A1A1A;
+    --bg-primary-rgb: 26, 26, 26;
     --bg-secondary: #2A2A2A;
     --bg-card: #333333;
     --text-primary: #F5F5F5;
