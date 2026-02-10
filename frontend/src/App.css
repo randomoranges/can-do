@@ -208,6 +208,7 @@ html {
     min-height: 145px;
     display: flex;
     flex-direction: column;
+    flex-shrink: 0;
 }
 
 .section-card:active {
@@ -435,6 +436,7 @@ html.dark .theme-tooltip {
     cursor: pointer;
     transition: background-color 0.2s ease;
     min-height: 3rem;
+    flex-shrink: 0;
 }
 
 .task-item:active {
@@ -542,6 +544,7 @@ html.dark .theme-tooltip {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    flex-shrink: 0;
 }
 
 /* Empty State */
@@ -1480,6 +1483,7 @@ html.dark .logout-btn:hover {
     border-radius: 1.25rem;
     padding: 1rem 1.25rem;
     transition: background-color 0.2s ease;
+    flex-shrink: 0;
 }
 
 .wins-card-content {
