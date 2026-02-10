@@ -1,55 +1,27 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends
+from fastapi import FastAPI, APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Optional, Literal
-import uuid
-from datetime import datetime, timezone, timedelta
-import httpx
+from pydantic import BaseModel, Field
+from typing import Optional, Literal
+from datetime import datetime, timezone
+from supabase import create_client, Client
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+# Supabase connection
+SUPABASE_URL = os.environ.get('SUPABASE_URL', 'https://hyjkrbnsftuouaitbdkr.supabase.co')
+SUPABASE_ANON_KEY = os.environ.get('SUPABASE_ANON_KEY', '')
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-app = FastAPI(title="can-do API")
+app = FastAPI(title="DoIt API")
 api_router = APIRouter(prefix="/api")
 
 # ==================== MODELS ====================
-
-class User(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    user_id: str
-    email: str
-    name: str
-    picture: Optional[str] = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-class UserSettings(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    user_id: str
-    theme: str = "yellow"
-    dark_mode: str = "auto"
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-class Task(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    user_id: str
-    title: str
-    profile: Literal["personal", "work"]
-    section: Literal["today", "tomorrow", "someday"]
-    completed: bool = False
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class TaskCreate(BaseModel):
     title: str
@@ -61,346 +33,214 @@ class TaskUpdate(BaseModel):
     section: Optional[Literal["today", "tomorrow", "someday"]] = None
     completed: Optional[bool] = None
 
+class WinCreate(BaseModel):
+    task: str
+    completed_at: Optional[str] = None
+
 class SettingsUpdate(BaseModel):
     theme: Optional[str] = None
     dark_mode: Optional[str] = None
 
-class SessionRequest(BaseModel):
-    session_id: str
-
 # ==================== AUTH HELPERS ====================
 
-async def get_current_user(request: Request) -> Optional[User]:
-    """Get current user from session token (cookie or header)"""
-    # Try cookie first
-    session_token = request.cookies.get("session_token")
-    
-    # Fallback to Authorization header
-    if not session_token:
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            session_token = auth_header.split(" ")[1]
-    
-    if not session_token:
-        return None
-    
-    # Find session
-    session_doc = await db.user_sessions.find_one(
-        {"session_token": session_token},
-        {"_id": 0}
-    )
-    
-    if not session_doc:
-        return None
-    
-    # Check expiry
-    expires_at = session_doc.get("expires_at")
-    if isinstance(expires_at, str):
-        expires_at = datetime.fromisoformat(expires_at)
-    if expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=timezone.utc)
-    if expires_at < datetime.now(timezone.utc):
-        return None
-    
-    # Get user
-    user_doc = await db.users.find_one(
-        {"user_id": session_doc["user_id"]},
-        {"_id": 0}
-    )
-    
-    if not user_doc:
-        return None
-    
-    return User(**user_doc)
+def get_user_id_from_token(request: Request) -> str:
+    """Extract and verify user from Supabase JWT in Authorization header"""
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
 
-async def require_auth(request: Request) -> User:
-    """Require authenticated user"""
-    user = await get_current_user(request)
-    if not user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    return user
+    token = auth_header.split(" ")[1]
 
-# Guest user helper
-def get_guest_user_id(request: Request) -> str:
-    """Get or create guest user ID from cookie"""
-    guest_id = request.cookies.get("guest_id")
-    if not guest_id:
-        guest_id = f"guest_{uuid.uuid4().hex[:12]}"
-    return guest_id
+    try:
+        # Use Supabase to verify the token and get user
+        user_response = supabase.auth.get_user(token)
+        if not user_response or not user_response.user:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        return user_response.user.id
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
+
+def get_supabase_client_for_user(request: Request) -> Client:
+    """Create a Supabase client authenticated as the user (for RLS)"""
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing authorization header")
+
+    token = auth_header.split(" ")[1]
+
+    # Create a new client with the user's token for RLS
+    user_client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+    user_client.postgrest.auth(token)
+    return user_client
 
 # ==================== AUTH ENDPOINTS ====================
 
-@api_router.post("/auth/session")
-async def create_session(session_req: SessionRequest, response: Response):
-    """Exchange session_id for session_token after Google OAuth"""
-    try:
-        # Call Emergent auth API to get user data
-        async with httpx.AsyncClient() as client:
-            auth_response = await client.get(
-                "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
-                headers={"X-Session-ID": session_req.session_id}
-            )
-        
-        if auth_response.status_code != 200:
-            raise HTTPException(status_code=401, detail="Invalid session")
-        
-        auth_data = auth_response.json()
-        
-        # Check if user exists
-        existing_user = await db.users.find_one(
-            {"email": auth_data["email"]},
-            {"_id": 0}
-        )
-        
-        if existing_user:
-            user_id = existing_user["user_id"]
-            # Update user info
-            await db.users.update_one(
-                {"user_id": user_id},
-                {"$set": {
-                    "name": auth_data["name"],
-                    "picture": auth_data.get("picture"),
-                    "updated_at": datetime.now(timezone.utc).isoformat()
-                }}
-            )
-        else:
-            # Create new user
-            user_id = f"user_{uuid.uuid4().hex[:12]}"
-            await db.users.insert_one({
-                "user_id": user_id,
-                "email": auth_data["email"],
-                "name": auth_data["name"],
-                "picture": auth_data.get("picture"),
-                "created_at": datetime.now(timezone.utc).isoformat()
-            })
-            
-            # Create default settings for new user
-            await db.user_settings.insert_one({
-                "user_id": user_id,
-                "theme": "yellow",
-                "dark_mode": "auto",
-                "created_at": datetime.now(timezone.utc).isoformat()
-            })
-        
-        # Create session
-        session_token = auth_data.get("session_token", f"session_{uuid.uuid4().hex}")
-        expires_at = datetime.now(timezone.utc) + timedelta(days=7)
-        
-        await db.user_sessions.insert_one({
-            "user_id": user_id,
-            "session_token": session_token,
-            "expires_at": expires_at.isoformat(),
-            "created_at": datetime.now(timezone.utc).isoformat()
-        })
-        
-        # Set cookie
-        response.set_cookie(
-            key="session_token",
-            value=session_token,
-            httponly=True,
-            secure=True,
-            samesite="none",
-            path="/",
-            max_age=7 * 24 * 60 * 60  # 7 days
-        )
-        
-        # Get user doc and include session_token for frontend storage
-        user_doc = await db.users.find_one({"user_id": user_id}, {"_id": 0})
-        
-        return {
-            **user_doc,
-            "session_token": session_token
-        }
-        
-    except httpx.RequestError as e:
-        raise HTTPException(status_code=500, detail=f"Auth service error: {str(e)}")
-
 @api_router.get("/auth/me")
 async def get_me(request: Request):
-    """Get current authenticated user"""
-    user = await get_current_user(request)
-    if not user:
+    """Get current authenticated user info from Supabase JWT"""
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Not authenticated")
-    return user.model_dump()
 
-@api_router.post("/auth/logout")
-async def logout(request: Request, response: Response):
-    """Logout and clear session"""
-    session_token = request.cookies.get("session_token")
-    
-    if session_token:
-        await db.user_sessions.delete_one({"session_token": session_token})
-    
-    response.delete_cookie(
-        key="session_token",
-        path="/",
-        secure=True,
-        samesite="none"
-    )
-    
-    return {"message": "Logged out successfully"}
+    token = auth_header.split(" ")[1]
+
+    try:
+        user_response = supabase.auth.get_user(token)
+        if not user_response or not user_response.user:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        user = user_response.user
+        return {
+            "user_id": user.id,
+            "email": user.email,
+            "name": user.user_metadata.get("full_name", user.user_metadata.get("name", "")),
+            "picture": user.user_metadata.get("avatar_url", user.user_metadata.get("picture", "")),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
 
 # ==================== SETTINGS ENDPOINTS ====================
 
 @api_router.get("/settings")
 async def get_settings(request: Request):
     """Get user settings"""
-    user = await get_current_user(request)
-    
-    if user:
-        settings = await db.user_settings.find_one(
-            {"user_id": user.user_id},
-            {"_id": 0}
-        )
-        if not settings:
-            settings = {"user_id": user.user_id, "theme": "yellow", "dark_mode": "auto"}
-        return settings
-    else:
-        # Guest - return from cookie or defaults
-        return {
-            "user_id": "guest",
-            "theme": "yellow",
-            "dark_mode": "auto"
-        }
+    user_id = get_user_id_from_token(request)
+    client = get_supabase_client_for_user(request)
+
+    result = client.table("user_settings").select("*").eq("user_id", user_id).execute()
+
+    if result.data and len(result.data) > 0:
+        return result.data[0]
+
+    # Create default settings if none exist
+    default_settings = {
+        "user_id": user_id,
+        "theme": "yellow",
+        "dark_mode": "auto",
+    }
+    client.table("user_settings").insert(default_settings).execute()
+    return default_settings
 
 @api_router.patch("/settings")
 async def update_settings(input: SettingsUpdate, request: Request):
     """Update user settings"""
-    user = await get_current_user(request)
-    
-    if not user:
-        # Guest users save settings in localStorage (handled by frontend)
-        return {"message": "Settings saved locally for guest"}
-    
+    user_id = get_user_id_from_token(request)
+    client = get_supabase_client_for_user(request)
+
     update_data = {k: v for k, v in input.model_dump().items() if v is not None}
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
-    
+
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
-    
-    await db.user_settings.update_one(
-        {"user_id": user.user_id},
-        {"$set": update_data},
-        upsert=True
-    )
-    
-    settings = await db.user_settings.find_one(
-        {"user_id": user.user_id},
-        {"_id": 0}
-    )
-    
-    return settings
+
+    result = client.table("user_settings").update(update_data).eq("user_id", user_id).execute()
+
+    if not result.data:
+        # Upsert if no settings exist yet
+        update_data["user_id"] = user_id
+        result = client.table("user_settings").insert(update_data).execute()
+
+    return result.data[0] if result.data else update_data
 
 # ==================== TASK ENDPOINTS ====================
 
 @api_router.get("/tasks/{profile}")
 async def get_tasks(profile: Literal["personal", "work"], request: Request):
     """Get tasks for a profile"""
-    user = await get_current_user(request)
-    
-    if user:
-        user_id = user.user_id
-    else:
-        user_id = get_guest_user_id(request)
-    
-    tasks = await db.tasks.find(
-        {"user_id": user_id, "profile": profile},
-        {"_id": 0}
-    ).to_list(1000)
-    
-    for task in tasks:
-        if isinstance(task.get('created_at'), str):
-            task['created_at'] = datetime.fromisoformat(task['created_at'])
-        if isinstance(task.get('updated_at'), str):
-            task['updated_at'] = datetime.fromisoformat(task['updated_at'])
-    
-    return tasks
+    user_id = get_user_id_from_token(request)
+    client = get_supabase_client_for_user(request)
+
+    result = client.table("tasks").select("*").eq("user_id", user_id).eq("profile", profile).order("created_at").execute()
+    return result.data
 
 @api_router.post("/tasks")
-async def create_task(input: TaskCreate, request: Request, response: Response):
+async def create_task(input: TaskCreate, request: Request):
     """Create a new task"""
-    user = await get_current_user(request)
-    
-    if user:
-        user_id = user.user_id
-    else:
-        user_id = get_guest_user_id(request)
-        # Set guest cookie if not exists
-        if not request.cookies.get("guest_id"):
-            response.set_cookie(
-                key="guest_id",
-                value=user_id,
-                httponly=True,
-                secure=True,
-                samesite="none",
-                path="/",
-                max_age=365 * 24 * 60 * 60  # 1 year
-            )
-    
-    task = Task(user_id=user_id, **input.model_dump())
-    doc = task.model_dump()
-    doc['created_at'] = doc['created_at'].isoformat()
-    doc['updated_at'] = doc['updated_at'].isoformat()
-    
-    await db.tasks.insert_one(doc)
-    
-    return task
+    user_id = get_user_id_from_token(request)
+    client = get_supabase_client_for_user(request)
+
+    task_data = {
+        "user_id": user_id,
+        "title": input.title,
+        "profile": input.profile,
+        "section": input.section,
+        "completed": False,
+    }
+
+    result = client.table("tasks").insert(task_data).execute()
+
+    if not result.data:
+        raise HTTPException(status_code=500, detail="Failed to create task")
+
+    return result.data[0]
 
 @api_router.patch("/tasks/{task_id}")
 async def update_task(task_id: str, input: TaskUpdate, request: Request):
     """Update a task"""
-    user = await get_current_user(request)
-    
-    if user:
-        user_id = user.user_id
-    else:
-        user_id = get_guest_user_id(request)
-    
+    user_id = get_user_id_from_token(request)
+    client = get_supabase_client_for_user(request)
+
     update_data = {k: v for k, v in input.model_dump().items() if v is not None}
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
-    
-    update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
-    
-    result = await db.tasks.find_one_and_update(
-        {"id": task_id, "user_id": user_id},
-        {"$set": update_data},
-        return_document=True
-    )
-    
-    if not result:
+
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+    result = client.table("tasks").update(update_data).eq("id", task_id).eq("user_id", user_id).execute()
+
+    if not result.data:
         raise HTTPException(status_code=404, detail="Task not found")
-    
-    result.pop('_id', None)
-    if isinstance(result.get('created_at'), str):
-        result['created_at'] = datetime.fromisoformat(result['created_at'])
-    if isinstance(result.get('updated_at'), str):
-        result['updated_at'] = datetime.fromisoformat(result['updated_at'])
-    
-    return result
+
+    return result.data[0]
 
 @api_router.delete("/tasks/{task_id}")
 async def delete_task(task_id: str, request: Request):
     """Delete a task"""
-    user = await get_current_user(request)
-    
-    if user:
-        user_id = user.user_id
-    else:
-        user_id = get_guest_user_id(request)
-    
-    result = await db.tasks.delete_one({"id": task_id, "user_id": user_id})
-    
-    if result.deleted_count == 0:
+    user_id = get_user_id_from_token(request)
+    client = get_supabase_client_for_user(request)
+
+    result = client.table("tasks").delete().eq("id", task_id).eq("user_id", user_id).execute()
+
+    if not result.data:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     return {"message": "Task deleted successfully"}
+
+# ==================== WINS ENDPOINTS ====================
+
+@api_router.get("/wins")
+async def get_wins(request: Request):
+    """Get all wins for the user"""
+    user_id = get_user_id_from_token(request)
+    client = get_supabase_client_for_user(request)
+
+    result = client.table("wins").select("*").eq("user_id", user_id).order("completed_at", desc=True).execute()
+    return result.data
+
+@api_router.post("/wins")
+async def create_win(input: WinCreate, request: Request):
+    """Record a win (completed task)"""
+    user_id = get_user_id_from_token(request)
+    client = get_supabase_client_for_user(request)
+
+    win_data = {
+        "user_id": user_id,
+        "task": input.task,
+        "completed_at": input.completed_at or datetime.now(timezone.utc).isoformat(),
+    }
+
+    result = client.table("wins").insert(win_data).execute()
+
+    if not result.data:
+        raise HTTPException(status_code=500, detail="Failed to record win")
+
+    return result.data[0]
 
 # ==================== HEALTH CHECK ====================
 
 @api_router.get("/")
 async def root():
-    return {"message": "can-do API", "status": "running"}
+    return {"message": "DoIt API", "status": "running"}
 
 # ==================== APP SETUP ====================
 
@@ -419,7 +259,3 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
