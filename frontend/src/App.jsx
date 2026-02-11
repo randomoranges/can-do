@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import "./App.css";
 import { Toaster, toast } from "sonner";
 import { Settings, ArrowLeft, Check, Trash2, X, Sun, Moon, Monitor, LogOut, User } from "lucide-react";
@@ -946,13 +946,15 @@ const ProfileScreen = ({ profile, tasks, onBack, onSelectSection, onOpenSettings
   const profileLabel = profile.charAt(0).toUpperCase() + profile.slice(1);
   const getTaskCount = (section) => tasks.filter((t) => t.section === section && !t.completed).length;
   const [themeTooltip, setThemeTooltip] = useState(null);
+  const tooltipTimerRef = useRef(null);
 
   const handleRandomTheme = () => {
     const newTheme = onRandomTheme();
     const themeData = THEMES[newTheme];
     const caption = themeData.caption || themeData.name;
+    if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current);
     setThemeTooltip(caption);
-    setTimeout(() => setThemeTooltip(null), 3000);
+    tooltipTimerRef.current = setTimeout(() => setThemeTooltip(null), 3000);
   };
 
   return (
