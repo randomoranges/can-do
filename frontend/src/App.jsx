@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import "./App.css";
 import { Toaster, toast } from "sonner";
-import { Settings, ArrowLeft, Check, Trash2, X, Sun, Moon, Monitor, LogOut, User } from "lucide-react";
+import { Settings, ArrowLeft, Check, Trash2, X, Sun, Moon, Monitor, LogOut, User, Mail, ToggleLeft, ToggleRight } from "lucide-react";
 import confetti from "canvas-confetti";
 import { supabase } from "./supabaseClient";
 
@@ -383,19 +383,33 @@ const BottomSheet = ({ open, onClose, children }) => {
 };
 
 // Settings Modal
-const SettingsModal = ({ 
-  open, 
-  onClose, 
-  currentTheme, 
-  onThemeChange, 
-  darkMode, 
+const SettingsModal = ({
+  open,
+  onClose,
+  currentTheme,
+  onThemeChange,
+  darkMode,
   onDarkModeChange,
   currentProfile,
   onProfileChange,
   user,
   isGuest,
-  onLogout
+  onLogout,
+  happySettings,
+  onHappyToggle,
+  onHappySave
 }) => {
+  const [happyEmail, setHappyEmail] = useState(happySettings?.email || '');
+  const [happyName, setHappyName] = useState(happySettings?.name || '');
+  const [happyDirty, setHappyDirty] = useState(false);
+
+  useEffect(() => {
+    if (happySettings) {
+      setHappyEmail(happySettings.email || '');
+      setHappyName(happySettings.name || '');
+      setHappyDirty(false);
+    }
+  }, [happySettings]);
   if (!open) return null;
 
   return (
@@ -544,10 +558,68 @@ const SettingsModal = ({
             </div>
           </div>
           
+          {/* Happy - AI Email Assistant */}
+          {user && !isGuest && (
+            <div className="settings-section happy-section">
+              <div className="happy-header">
+                <div className="happy-label">
+                  <Mail size={18} />
+                  <span>Happy</span>
+                  <span className="happy-badge">AI</span>
+                </div>
+                <button
+                  className="happy-toggle-btn"
+                  onClick={onHappyToggle}
+                >
+                  {happySettings?.enabled ? (
+                    <ToggleRight size={28} color="#F59E0B" />
+                  ) : (
+                    <ToggleLeft size={28} color="#9CA3AF" />
+                  )}
+                </button>
+              </div>
+              <p className="happy-description">
+                Your AI accountability buddy. Sends you emails about your tasks — morning briefings, midday nudges, evening recaps, and friendly roasts.
+              </p>
+              {happySettings?.enabled && (
+                <div className="happy-fields">
+                  <div className="happy-field">
+                    <label className="happy-field-label">Your name</label>
+                    <input
+                      type="text"
+                      className="happy-input"
+                      placeholder="What should Happy call you?"
+                      value={happyName}
+                      onChange={(e) => { setHappyName(e.target.value); setHappyDirty(true); }}
+                    />
+                  </div>
+                  <div className="happy-field">
+                    <label className="happy-field-label">Email</label>
+                    <input
+                      type="email"
+                      className="happy-input"
+                      placeholder="Where should Happy email you?"
+                      value={happyEmail}
+                      onChange={(e) => { setHappyEmail(e.target.value); setHappyDirty(true); }}
+                    />
+                  </div>
+                  {happyDirty && happyEmail && (
+                    <button
+                      className="happy-save-btn"
+                      onClick={() => { onHappySave(happyName, happyEmail); setHappyDirty(false); }}
+                    >
+                      Save
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Logout Section */}
           <div className="settings-section logout-section">
-            <button 
-              className="logout-btn" 
+            <button
+              className="logout-btn"
               onClick={onLogout}
               data-testid="logout-btn"
             >
@@ -1064,8 +1136,8 @@ const EmptyState = ({ section, onAddClick, theme }) => {
 };
 
 // Section Screen
-const SectionScreen = ({ 
-  profile, section, tasks, onBack, onToggleTask, onEditTask, onAddTask, onClearCompleted, theme
+const SectionScreen = ({
+  profile, section, tasks, onBack, onToggleTask, onEditTask, onAddTask, onClearCompleted, theme, onHappyCelebration
 }) => {
   const config = getSectionConfig(theme, section);
   const sectionTasks = tasks.filter((t) => t.section === section);
@@ -1084,8 +1156,12 @@ const SectionScreen = ({
     if (allTasksCompleted && !hasShownConfetti && completedTasks.length > 0) {
       triggerConfetti();
       setHasShownConfetti(true);
+      // Trigger Happy celebration email if section is "today"
+      if (section === 'today' && onHappyCelebration) {
+        onHappyCelebration();
+      }
     }
-  }, [allTasksCompleted, hasShownConfetti, completedTasks.length]);
+  }, [allTasksCompleted, hasShownConfetti, completedTasks.length, section, onHappyCelebration]);
 
   useEffect(() => {
     if (!allTasksCompleted) setHasShownConfetti(false);
@@ -1311,6 +1387,9 @@ function App() {
     const saved = localStorage.getItem('wins');
     return saved ? JSON.parse(saved) : [];
   });
+
+  // Happy - AI email assistant settings
+  const [happySettings, setHappySettings] = useState(null);
 
   // ============================================================
   // SUPABASE AUTH
@@ -1541,6 +1620,123 @@ function App() {
       fetchWins();
     }
   }, [authState, fetchWins]);
+
+  // ============================================================
+  // HAPPY - AI EMAIL ASSISTANT
+  // ============================================================
+
+  const fetchHappySettings = useCallback(async () => {
+    if (authState !== 'authenticated') return;
+    try {
+      const userId = await getCurrentUserId();
+      if (!userId) return;
+      const { data } = await supabase
+        .from('happy_settings')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+      if (data) {
+        setHappySettings(data);
+      } else {
+        // No settings yet - show as disabled
+        setHappySettings({ enabled: false, name: '', email: '' });
+      }
+    } catch {
+      setHappySettings({ enabled: false, name: '', email: '' });
+    }
+  }, [authState]);
+
+  useEffect(() => {
+    if (authState === 'authenticated') {
+      fetchHappySettings();
+    }
+  }, [authState, fetchHappySettings]);
+
+  const handleHappyToggle = async () => {
+    if (authState !== 'authenticated') return;
+    const userId = await getCurrentUserId();
+    if (!userId) return;
+
+    const newEnabled = !happySettings?.enabled;
+
+    if (!happySettings?.id) {
+      // First time enabling - create with user's email
+      const { data, error } = await supabase
+        .from('happy_settings')
+        .insert({
+          user_id: userId,
+          enabled: true,
+          name: user?.name || 'Friend',
+          email: user?.email || '',
+        })
+        .select()
+        .single();
+      if (!error && data) {
+        setHappySettings(data);
+        toast.success("Happy activated! 🎉");
+      } else {
+        toast.error("Failed to enable Happy");
+      }
+    } else {
+      // Toggle existing
+      const { data, error } = await supabase
+        .from('happy_settings')
+        .update({ enabled: newEnabled, updated_at: new Date().toISOString() })
+        .eq('id', happySettings.id)
+        .select()
+        .single();
+      if (!error && data) {
+        setHappySettings(data);
+        toast.success(newEnabled ? "Happy activated! 🎉" : "Happy paused");
+      }
+    }
+  };
+
+  const handleHappySave = async (name, email) => {
+    if (!happySettings?.id) return;
+    const { data, error } = await supabase
+      .from('happy_settings')
+      .update({ name, email, updated_at: new Date().toISOString() })
+      .eq('id', happySettings.id)
+      .select()
+      .single();
+    if (!error && data) {
+      setHappySettings(data);
+      toast.success("Happy settings saved!");
+    } else {
+      toast.error("Failed to save settings");
+    }
+  };
+
+  // Track app open for inactivity detection
+  useEffect(() => {
+    if (authState !== 'authenticated') return;
+    const updateLastOpen = async () => {
+      const userId = await getCurrentUserId();
+      if (!userId) return;
+      await supabase
+        .from('user_settings')
+        .upsert({ user_id: userId, last_app_open: new Date().toISOString() }, { onConflict: 'user_id' });
+    };
+    updateLastOpen();
+  }, [authState]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Trigger celebration email when all today tasks are completed
+  const triggerHappyCelebration = useCallback(async () => {
+    if (authState !== 'authenticated' || !happySettings?.enabled) return;
+    const userId = await getCurrentUserId();
+    if (!userId) return;
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hyjkrbnsftuouaitbdkr.supabase.co';
+      await fetch(`${supabaseUrl}/functions/v1/happy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5amtyYm5zZnR1b3VhaXRiZGtyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc5NjAzNDUsImV4cCI6MjA1MzUzNjM0NX0.aHWnS2VFMuRCgjpKxTVjiPJmyMXxnTv5SjPPkuyMbwA'}` },
+        body: JSON.stringify({ job_type: 'celebration', user_id: userId }),
+      });
+    } catch (err) {
+      console.error('Happy celebration trigger error:', err);
+    }
+  }, [authState, happySettings]);
 
   const fetchTasks = useCallback(async (profile) => {
     if (!profile) return;
@@ -1800,6 +1996,7 @@ function App() {
           onAddTask={handleAddTask}
           onClearCompleted={handleClearCompleted}
           theme={currentTheme}
+          onHappyCelebration={triggerHappyCelebration}
         />
       ) : (
         <ProfileScreen
@@ -1835,6 +2032,9 @@ function App() {
         user={user}
         isGuest={authState === 'guest'}
         onLogout={handleLogout}
+        happySettings={happySettings}
+        onHappyToggle={handleHappyToggle}
+        onHappySave={handleHappySave}
       />
     </div>
   );
