@@ -191,7 +191,7 @@ html {
     padding: 0 1.5rem;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    padding-bottom: 1rem;
+    padding-bottom: 6rem;
 }
 
 .sections-container::-webkit-scrollbar {
@@ -259,6 +259,13 @@ html {
     -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
     flex-shrink: 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-width: 430px;
+    margin: 0 auto;
+    z-index: 50;
 }
 
 .back-btn {
@@ -415,7 +422,7 @@ html.dark .theme-tooltip {
     flex-direction: column;
     gap: 0.5rem;
     padding: 0 1.5rem;
-    padding-bottom: 1rem;
+    padding-bottom: 6rem;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
 }
@@ -555,6 +562,7 @@ html.dark .theme-tooltip {
     align-items: center;
     justify-content: center;
     padding: 2rem 1.5rem;
+    padding-bottom: 6rem;
     text-align: center;
     overflow-y: auto;
 }
@@ -1468,7 +1476,7 @@ html.dark .logout-btn:hover {
     flex-direction: column;
     gap: 0.5rem;
     padding: 0 1.5rem;
-    padding-bottom: 1rem;
+    padding-bottom: 5rem;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
 }
@@ -1534,6 +1542,13 @@ html.dark .logout-btn:hover {
     -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
     flex-shrink: 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-width: 430px;
+    margin: 0 auto;
+    z-index: 50;
 }
 
 .wins-total {
