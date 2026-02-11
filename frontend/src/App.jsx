@@ -1298,6 +1298,7 @@ function App() {
 
   const [currentTheme, setCurrentTheme] = useState(() => localStorage.getItem('taskTheme') || 'yellow');
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('darkMode') || 'auto');
+  const recentThemesRef = useRef([]);
 
   // Guest mode local storage
   const [guestTasks, setGuestTasks] = useState(() => {
@@ -1440,9 +1441,22 @@ function App() {
 
   const handleRandomTheme = () => {
     const allThemes = [...COLOR_THEMES, ...SPECIAL_THEMES];
-    const otherThemes = allThemes.filter(t => t !== currentTheme);
-    const randomIndex = Math.floor(Math.random() * otherThemes.length);
-    const newTheme = otherThemes[randomIndex];
+    // Exclude recently seen themes so you cycle through all before repeating
+    const recentSet = new Set(recentThemesRef.current);
+    let pool = allThemes.filter(t => t !== currentTheme && !recentSet.has(t));
+    // If pool is exhausted, reset history and pick from all except current
+    if (pool.length === 0) {
+      recentThemesRef.current = [];
+      pool = allThemes.filter(t => t !== currentTheme);
+    }
+    // Fisher-Yates-ish: pick a random one from the pool
+    const newTheme = pool[Math.floor(Math.random() * pool.length)];
+    // Track in recent history (keep last ~70% of total so variety stays high)
+    recentThemesRef.current.push(newTheme);
+    const maxRecent = Math.floor(allThemes.length * 0.7);
+    if (recentThemesRef.current.length > maxRecent) {
+      recentThemesRef.current = recentThemesRef.current.slice(-maxRecent);
+    }
     setCurrentTheme(newTheme);
     localStorage.setItem('taskTheme', newTheme);
     return newTheme;
