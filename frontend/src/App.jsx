@@ -679,43 +679,135 @@ const SectionCard = ({ section, taskCount, onClick, theme }) => {
 // Wins Screen
 const WinsScreen = ({ wins, onBack }) => {
   const [filter, setFilter] = useState('all');
+  const [showAnalytics, setShowAnalytics] = useState(false);
+
+  const sortedWins = [...wins].sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at));
+
+  // Get available months from wins data
+  const getAvailableMonths = () => {
+    const months = new Map();
+    sortedWins.forEach(w => {
+      const d = new Date(w.completed_at);
+      const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      if (!months.has(key)) months.set(key, label);
+    });
+    return Array.from(months, ([key, label]) => ({ key, label }));
+  };
+
+  // Get available years
+  const getAvailableYears = () => {
+    const years = new Set();
+    sortedWins.forEach(w => years.add(new Date(w.completed_at).getFullYear()));
+    return Array.from(years).sort((a, b) => b - a).map(y => ({ key: `year-${y}`, label: `${y}` }));
+  };
 
   const filterWins = (wins) => {
     const now = new Date();
-    switch (filter) {
-      case 'today': {
-        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        return wins.filter(w => new Date(w.completed_at) >= startOfDay);
-      }
-      case 'week': {
-        const startOfWeek = new Date(now);
-        startOfWeek.setDate(now.getDate() - now.getDay());
-        startOfWeek.setHours(0, 0, 0, 0);
-        return wins.filter(w => new Date(w.completed_at) >= startOfWeek);
-      }
-      case 'month': {
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        return wins.filter(w => new Date(w.completed_at) >= startOfMonth);
-      }
-      default:
-        return wins;
+    if (filter === 'today') {
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      return wins.filter(w => new Date(w.completed_at) >= start);
     }
+    if (filter === 'week') {
+      const start = new Date(now);
+      start.setDate(now.getDate() - now.getDay());
+      start.setHours(0, 0, 0, 0);
+      return wins.filter(w => new Date(w.completed_at) >= start);
+    }
+    if (filter.startsWith('year-')) {
+      const year = parseInt(filter.split('-')[1]);
+      return wins.filter(w => new Date(w.completed_at).getFullYear() === year);
+    }
+    if (filter.match(/^\d{4}-\d{2}$/)) {
+      const [year, month] = filter.split('-').map(Number);
+      return wins.filter(w => {
+        const d = new Date(w.completed_at);
+        return d.getFullYear() === year && d.getMonth() === month;
+      });
+    }
+    return wins;
   };
 
   const formatWinDate = (dateStr) => {
     const date = new Date(dateStr);
-    const options = { month: 'short', day: 'numeric', year: 'numeric' };
-    const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
-    return `${date.toLocaleDateString('en-US', options)} \u2022 ${date.toLocaleTimeString('en-US', timeOptions)}`;
+    const opts = { month: 'short', day: 'numeric', year: 'numeric' };
+    const timeOpts = { hour: 'numeric', minute: '2-digit', hour12: true };
+    return `${date.toLocaleDateString('en-US', opts)} \u2022 ${date.toLocaleTimeString('en-US', timeOpts)}`;
   };
 
-  const filteredWins = filterWins([...wins].sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at)));
-  const filters = [
+  const filteredWins = filterWins(sortedWins);
+
+  const baseFilters = [
     { key: 'all', label: 'All' },
     { key: 'today', label: 'Today' },
     { key: 'week', label: 'This Week' },
-    { key: 'month', label: 'This Month' },
   ];
+  const monthFilters = getAvailableMonths();
+  const yearFilters = getAvailableYears();
+
+  // Analytics
+  const computeAnalytics = () => {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - now.getDay());
+    weekStart.setHours(0, 0, 0, 0);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const todayCount = sortedWins.filter(w => new Date(w.completed_at) >= todayStart).length;
+    const weekCount = sortedWins.filter(w => new Date(w.completed_at) >= weekStart).length;
+    const monthCount = sortedWins.filter(w => new Date(w.completed_at) >= monthStart).length;
+    const totalCount = sortedWins.length;
+
+    // Streak: consecutive days with at least one win
+    let streak = 0;
+    const dayCheck = new Date(todayStart);
+    const winDays = new Set();
+    sortedWins.forEach(w => {
+      const d = new Date(w.completed_at);
+      winDays.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+    });
+    while (winDays.has(`${dayCheck.getFullYear()}-${dayCheck.getMonth()}-${dayCheck.getDate()}`)) {
+      streak++;
+      dayCheck.setDate(dayCheck.getDate() - 1);
+    }
+
+    // Best day
+    const dayCounts = {};
+    sortedWins.forEach(w => {
+      const d = new Date(w.completed_at);
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      dayCounts[key] = (dayCounts[key] || 0) + 1;
+    });
+    const bestDayEntry = Object.entries(dayCounts).sort((a, b) => b[1] - a[1])[0];
+    let bestDay = null;
+    if (bestDayEntry) {
+      const [y, m, d] = bestDayEntry[0].split('-').map(Number);
+      bestDay = {
+        date: new Date(y, m, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        count: bestDayEntry[1],
+      };
+    }
+
+    // Weekly bar chart (last 7 days)
+    const weeklyBars = [];
+    const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(todayStart);
+      d.setDate(d.getDate() - i);
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      weeklyBars.push({
+        label: dayLabels[d.getDay()],
+        count: dayCounts[key] || 0,
+        isToday: i === 0,
+      });
+    }
+    const maxBar = Math.max(...weeklyBars.map(b => b.count), 1);
+
+    return { todayCount, weekCount, monthCount, totalCount, streak, bestDay, weeklyBars, maxBar };
+  };
+
+  const analytics = computeAnalytics();
 
   return (
     <div className="wins-screen" data-testid="wins-screen">
@@ -725,43 +817,121 @@ const WinsScreen = ({ wins, onBack }) => {
         </button>
       </div>
 
-      <div className="wins-hero">
-        <div className="wins-hero-card">
-          <img src="/emojis/raising-hands.png" alt="Wins" className="wins-hero-emoji" />
-          <p className="wins-hero-text">Every done task lives here. Proof you showed up.</p>
-        </div>
-      </div>
-
-      <div className="wins-filters">
-        {filters.map(f => (
-          <button
-            key={f.key}
-            className={`wins-filter-btn ${filter === f.key ? 'active' : ''}`}
-            onClick={() => setFilter(f.key)}
-            data-testid={`wins-filter-${f.key}`}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="wins-list">
-        {filteredWins.length === 0 ? (
-          <div className="wins-empty">
-            <p className="wins-empty-text">
-              {filter === 'all' ? 'No wins yet. Go check off a task!' : 'No wins in this period.'}
+      <div className="wins-scrollable">
+        {/* Hero */}
+        <div className="wins-hero">
+          <div className="wins-hero-card" onClick={() => setShowAnalytics(!showAnalytics)}>
+            <img src="/emojis/raising-hands.png" alt="Wins" className="wins-hero-emoji" />
+            <p className="wins-hero-text">
+              {showAnalytics ? 'Your wins dashboard' : 'Every done task lives here. Proof you showed up.'}
             </p>
           </div>
-        ) : (
-          filteredWins.map((win) => (
-            <div key={win.id} className="wins-card" data-testid={`win-card-${win.id}`}>
-              <div className="wins-card-content">
-                <span className="wins-task-title">{win.task} ☑️</span>
-                <span className="wins-task-date">{formatWinDate(win.completed_at)}</span>
+        </div>
+
+        {/* Analytics Dashboard */}
+        {showAnalytics && (
+          <div className="wins-analytics">
+            <div className="analytics-stats">
+              <div className="analytics-stat">
+                <span className="stat-number">{analytics.todayCount}</span>
+                <span className="stat-label">today</span>
+              </div>
+              <div className="analytics-stat">
+                <span className="stat-number">{analytics.weekCount}</span>
+                <span className="stat-label">this week</span>
+              </div>
+              <div className="analytics-stat">
+                <span className="stat-number">{analytics.monthCount}</span>
+                <span className="stat-label">this month</span>
+              </div>
+              <div className="analytics-stat">
+                <span className="stat-number">{analytics.totalCount}</span>
+                <span className="stat-label">all time</span>
               </div>
             </div>
-          ))
+
+            <div className="analytics-row">
+              <div className="analytics-card">
+                <span className="analytics-card-value">{analytics.streak}</span>
+                <span className="analytics-card-label">day streak</span>
+              </div>
+              {analytics.bestDay && (
+                <div className="analytics-card">
+                  <span className="analytics-card-value">{analytics.bestDay.count}</span>
+                  <span className="analytics-card-label">best day ({analytics.bestDay.date})</span>
+                </div>
+              )}
+            </div>
+
+            <div className="analytics-chart">
+              <p className="analytics-chart-title">Last 7 days</p>
+              <div className="analytics-bars">
+                {analytics.weeklyBars.map((bar, i) => (
+                  <div key={i} className="analytics-bar-col">
+                    <div className="analytics-bar-track">
+                      <div
+                        className={`analytics-bar-fill ${bar.isToday ? 'today' : ''}`}
+                        style={{ height: `${(bar.count / analytics.maxBar) * 100}%` }}
+                      />
+                    </div>
+                    <span className={`analytics-bar-label ${bar.isToday ? 'today' : ''}`}>{bar.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         )}
+
+        {/* Filters */}
+        <div className="wins-filters">
+          {baseFilters.map(f => (
+            <button
+              key={f.key}
+              className={`wins-filter-btn ${filter === f.key ? 'active' : ''}`}
+              onClick={() => setFilter(f.key)}
+            >
+              {f.label}
+            </button>
+          ))}
+          {monthFilters.map(f => (
+            <button
+              key={f.key}
+              className={`wins-filter-btn ${filter === f.key ? 'active' : ''}`}
+              onClick={() => setFilter(f.key)}
+            >
+              {f.label}
+            </button>
+          ))}
+          {yearFilters.map(f => (
+            <button
+              key={f.key}
+              className={`wins-filter-btn ${filter === f.key ? 'active' : ''}`}
+              onClick={() => setFilter(f.key)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Wins List */}
+        <div className="wins-list-inner">
+          {filteredWins.length === 0 ? (
+            <div className="wins-empty">
+              <p className="wins-empty-text">
+                {filter === 'all' ? 'No wins yet. Go check off a task!' : 'No wins in this period.'}
+              </p>
+            </div>
+          ) : (
+            filteredWins.map((win) => (
+              <div key={win.id} className="wins-card" data-testid={`win-card-${win.id}`}>
+                <div className="wins-card-content">
+                  <span className="wins-task-title">{win.task}</span>
+                  <span className="wins-task-date">{formatWinDate(win.completed_at)}</span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       <div className="wins-count-footer">
