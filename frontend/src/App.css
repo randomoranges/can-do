@@ -344,31 +344,36 @@ html {
     object-fit: contain;
 }
 
-/* Theme Tooltip */
-.theme-tooltip {
+/* Theme Tooltip Bubble */
+.theme-tooltip-bubble {
     position: fixed;
-    top: 1.5rem;
+    bottom: 6.5rem;
     left: 50%;
     transform: translateX(-50%);
-    background: var(--bg-card);
+    background: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    border-radius: 1rem;
-    padding: 0.75rem 1.25rem;
+    border-radius: 9999px;
+    padding: 0.625rem 1.25rem;
     font-family: 'League Spartan', sans-serif;
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     font-weight: 500;
-    color: var(--text-primary);
+    color: var(--text-secondary);
     text-align: center;
-    max-width: 90%;
-    z-index: 100;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    animation: tooltipFadeIn 0.3s ease-out;
+    max-width: 85%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    z-index: 60;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    animation: tooltipSlideUp 0.25s ease-out;
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
 }
 
-@keyframes tooltipFadeIn {
+@keyframes tooltipSlideUp {
     from {
         opacity: 0;
-        transform: translateX(-50%) translateY(-10px);
+        transform: translateX(-50%) translateY(8px);
     }
     to {
         opacity: 1;
@@ -376,7 +381,7 @@ html {
     }
 }
 
-html.dark .theme-tooltip {
+html.dark .theme-tooltip-bubble {
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
