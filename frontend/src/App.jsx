@@ -1143,6 +1143,12 @@ function App() {
   // SUPABASE AUTH
   // ============================================================
 
+  // Helper to get current user ID from Supabase client (not React state)
+  const getCurrentUserId = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.user?.id || null;
+  };
+
   // Initialize auth state from Supabase session
   useEffect(() => {
     // Get initial session
@@ -1300,15 +1306,19 @@ function App() {
     const winTitle = task.title.split('\n')[0];
     const completedAt = new Date().toISOString();
 
-    if (authState === 'authenticated' && supabaseSession) {
+    if (authState === 'authenticated') {
       try {
+        const userId = await getCurrentUserId();
+        if (!userId) return;
         const { data, error } = await supabase
           .from('wins')
-          .insert({ user_id: supabaseSession.user.id, task: winTitle, completed_at: completedAt })
+          .insert({ user_id: userId, task: winTitle, completed_at: completedAt })
           .select()
           .single();
         if (!error && data) {
           setWins(prev => [data, ...prev]);
+        } else if (error) {
+          console.error('Supabase wins insert error:', error.message);
         }
       } catch (err) {
         console.error('Failed to save win:', err);
@@ -1321,7 +1331,7 @@ function App() {
       };
       setWins(prev => [win, ...prev]);
     }
-  }, [authState, supabaseSession]);
+  }, [authState]);
 
   // Fetch wins for authenticated users
   const fetchWins = useCallback(async () => {
@@ -1400,16 +1410,22 @@ function App() {
     }
 
     try {
+      const userId = await getCurrentUserId();
+      if (!userId) {
+        toast.error("Not authenticated");
+        return;
+      }
       const { data, error } = await supabase
         .from('tasks')
-        .insert({ user_id: supabaseSession.user.id, title, profile: currentProfile, section })
+        .insert({ user_id: userId, title, profile: currentProfile, section })
         .select()
         .single();
       if (!error && data) {
         setTasks(prev => [...prev, data]);
         toast.success("Task added!");
       } else {
-        toast.error("Failed to add task");
+        console.error("Supabase insert error:", error?.message);
+        toast.error(error?.message || "Failed to add task");
       }
     } catch (error) {
       console.error("Error adding task:", error);
