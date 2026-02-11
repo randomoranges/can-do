@@ -5,10 +5,6 @@ import { Settings, ArrowLeft, Check, Trash2, X, Sun, Moon, Monitor, LogOut, User
 import confetti from "canvas-confetti";
 import { supabase } from "./supabaseClient";
 
-// Backend configuration
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
-const API = `${BACKEND_URL}/api`;
-
 // Theme configurations - CORRECTED arrangement
 const THEMES = {
   yellow: {
@@ -1147,11 +1143,11 @@ function App() {
   // SUPABASE AUTH
   // ============================================================
 
-  // Helper to get auth headers for backend API calls
-  const getAuthHeaders = useCallback(() => {
-    if (!supabaseSession?.access_token) return {};
-    return { Authorization: `Bearer ${supabaseSession.access_token}` };
-  }, [supabaseSession]);
+  // Helper to get current user ID from Supabase client (not React state)
+  const getCurrentUserId = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.user?.id || null;
+  };
 
   // Initialize auth state from Supabase session
   useEffect(() => {
@@ -1311,22 +1307,23 @@ function App() {
     const completedAt = new Date().toISOString();
 
     if (authState === 'authenticated') {
-      // Save to backend
       try {
-        const response = await fetch(`${API}/wins`, {
-          method: 'POST',
-          headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-          body: JSON.stringify({ task: winTitle, completed_at: completedAt }),
-        });
-        if (response.ok) {
-          const win = await response.json();
-          setWins(prev => [win, ...prev]);
+        const userId = await getCurrentUserId();
+        if (!userId) return;
+        const { data, error } = await supabase
+          .from('wins')
+          .insert({ user_id: userId, task: winTitle, completed_at: completedAt })
+          .select()
+          .single();
+        if (!error && data) {
+          setWins(prev => [data, ...prev]);
+        } else if (error) {
+          console.error('Supabase wins insert error:', error.message);
         }
       } catch (err) {
         console.error('Failed to save win:', err);
       }
     } else {
-      // Guest mode - save locally
       const win = {
         id: `win_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         task: winTitle,
@@ -1334,21 +1331,23 @@ function App() {
       };
       setWins(prev => [win, ...prev]);
     }
-  }, [authState, getAuthHeaders]);
+  }, [authState]);
 
   // Fetch wins for authenticated users
   const fetchWins = useCallback(async () => {
     if (authState !== 'authenticated') return;
     try {
-      const response = await fetch(`${API}/wins`, { headers: getAuthHeaders() });
-      if (response.ok) {
-        const data = await response.json();
+      const { data, error } = await supabase
+        .from('wins')
+        .select('*')
+        .order('completed_at', { ascending: false });
+      if (!error && data) {
         setWins(data);
       }
     } catch (err) {
       console.error('Failed to fetch wins:', err);
     }
-  }, [authState, getAuthHeaders]);
+  }, [authState]);
 
   // Load wins when authenticated
   useEffect(() => {
@@ -1368,9 +1367,12 @@ function App() {
     if (authState === 'authenticated') {
       setLoading(true);
       try {
-        const response = await fetch(`${API}/tasks/${profile}`, { headers: getAuthHeaders() });
-        if (response.ok) {
-          const data = await response.json();
+        const { data, error } = await supabase
+          .from('tasks')
+          .select('*')
+          .eq('profile', profile)
+          .order('created_at', { ascending: true });
+        if (!error && data) {
           setTasks(data);
         } else {
           toast.error("Failed to load tasks");
@@ -1382,7 +1384,7 @@ function App() {
         setLoading(false);
       }
     }
-  }, [authState, getAuthHeaders, guestTasks]);
+  }, [authState, guestTasks]);
 
   useEffect(() => {
     if (currentProfile && (authState === 'authenticated' || authState === 'guest')) {
@@ -1408,17 +1410,22 @@ function App() {
     }
 
     try {
-      const response = await fetch(`${API}/tasks`, {
-        method: 'POST',
-        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, profile: currentProfile, section }),
-      });
-      if (response.ok) {
-        const newTask = await response.json();
-        setTasks(prev => [...prev, newTask]);
+      const userId = await getCurrentUserId();
+      if (!userId) {
+        toast.error("Not authenticated");
+        return;
+      }
+      const { data, error } = await supabase
+        .from('tasks')
+        .insert({ user_id: userId, title, profile: currentProfile, section })
+        .select()
+        .single();
+      if (!error && data) {
+        setTasks(prev => [...prev, data]);
         toast.success("Task added!");
       } else {
-        toast.error("Failed to add task");
+        console.error("Supabase insert error:", error?.message);
+        toast.error(error?.message || "Failed to add task");
       }
     } catch (error) {
       console.error("Error adding task:", error);
@@ -1436,14 +1443,14 @@ function App() {
     }
 
     try {
-      const response = await fetch(`${API}/tasks/${task.id}`, {
-        method: 'PATCH',
-        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ completed: !task.completed }),
-      });
-      if (response.ok) {
-        const updated = await response.json();
-        setTasks(prev => prev.map(t => t.id === task.id ? updated : t));
+      const { data, error } = await supabase
+        .from('tasks')
+        .update({ completed: !task.completed, updated_at: new Date().toISOString() })
+        .eq('id', task.id)
+        .select()
+        .single();
+      if (!error && data) {
+        setTasks(prev => prev.map(t => t.id === task.id ? data : t));
         if (!task.completed) addWin(task);
       } else {
         toast.error("Failed to update task");
@@ -1464,14 +1471,14 @@ function App() {
     }
 
     try {
-      const response = await fetch(`${API}/tasks/${taskId}`, {
-        method: 'PATCH',
-        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
-      });
-      if (response.ok) {
-        const updated = await response.json();
-        setTasks(prev => prev.map(t => t.id === taskId ? updated : t));
+      const { data, error } = await supabase
+        .from('tasks')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', taskId)
+        .select()
+        .single();
+      if (!error && data) {
+        setTasks(prev => prev.map(t => t.id === taskId ? data : t));
         toast.success("Task updated!");
       } else {
         toast.error("Failed to update task");
@@ -1491,11 +1498,11 @@ function App() {
     }
 
     try {
-      const response = await fetch(`${API}/tasks/${taskId}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-      if (response.ok) {
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', taskId);
+      if (!error) {
         setTasks(prev => prev.filter(t => t.id !== taskId));
         toast.success("Task deleted!");
       } else {
@@ -1518,11 +1525,17 @@ function App() {
     }
 
     try {
-      await Promise.all(completedTasks.map(t =>
-        fetch(`${API}/tasks/${t.id}`, { method: 'DELETE', headers: getAuthHeaders() })
-      ));
-      setTasks(prev => prev.filter(t => !(t.section === section && t.completed)));
-      toast.success("Completed tasks cleared!");
+      const ids = completedTasks.map(t => t.id);
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .in('id', ids);
+      if (!error) {
+        setTasks(prev => prev.filter(t => !(t.section === section && t.completed)));
+        toast.success("Completed tasks cleared!");
+      } else {
+        toast.error("Failed to clear tasks");
+      }
     } catch (error) {
       console.error("Error clearing tasks:", error);
       toast.error("Failed to clear tasks");
