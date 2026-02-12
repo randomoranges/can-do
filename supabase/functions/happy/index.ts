@@ -9,7 +9,7 @@ const corsHeaders = {
 // CONFIG
 // ============================================================
 
-const GROK_API_URL = "https://api.x.ai/v1/chat/completions";
+const GROK_RESPONSES_URL = "https://api.x.ai/v1/responses";
 const GROK_MODEL = "grok-4-1-fast-reasoning";
 const GMAIL_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GMAIL_SEND_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
@@ -30,13 +30,14 @@ Rules:
 - Keep emails short and punchy
 - No fluff, no filler
 - Use casual language, contractions, lowercase energy
-- One emoji in subject line
 - Sign off every email with "— Happy"
 - Never use bullet points excessively
 - Sound like a friend texting, not a productivity app
+- If user's location is provided and weather info is available, weave in a brief weather mention naturally (e.g. "it's gonna rain so maybe knock out indoor tasks first" or "nice day out, don't waste it staring at your screen all day")
+- Never make weather the main topic — it's a side note, not a weather report
 
 IMPORTANT: Always respond in valid JSON with exactly two keys: "subject" and "body". The body should be plain text (not HTML). Example:
-{"subject": "📋 your monday lineup", "body": "hey...\\n\\n— Happy"}`;
+{"subject": "your monday lineup", "body": "hey...\\n\\n— Happy"}`;
 
 // ============================================================
 // SUPABASE CLIENT
@@ -51,30 +52,37 @@ function getSupabaseAdmin() {
 }
 
 // ============================================================
-// GROK API
+// GROK API (Responses endpoint with web search)
 // ============================================================
 
-async function callGrok(prompt: string, context: Record<string, unknown>): Promise<{ subject: string; body: string }> {
+async function callGrok(prompt: string, context: Record<string, unknown>, useSearch = false): Promise<{ subject: string; body: string }> {
   const grokApiKey = Deno.env.get("GROK_API_KEY");
   if (!grokApiKey) throw new Error("GROK_API_KEY not set");
 
   const userMessage = `${prompt}\n\nContext data:\n${JSON.stringify(context, null, 2)}`;
 
-  const response = await fetch(GROK_API_URL, {
+  const requestBody: Record<string, unknown> = {
+    model: GROK_MODEL,
+    input: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: userMessage },
+    ],
+    temperature: 0.9,
+    max_output_tokens: 500,
+  };
+
+  // Enable web search for weather/location-aware emails
+  if (useSearch) {
+    requestBody.tools = [{ type: "web_search" }];
+  }
+
+  const response = await fetch(GROK_RESPONSES_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${grokApiKey}`,
     },
-    body: JSON.stringify({
-      model: GROK_MODEL,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userMessage },
-      ],
-      temperature: 0.9,
-      max_tokens: 500,
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
@@ -83,14 +91,32 @@ async function callGrok(prompt: string, context: Record<string, unknown>): Promi
   }
 
   const data = await response.json();
-  const content = data.choices?.[0]?.message?.content?.trim();
+
+  // Responses API returns output array — find the text message
+  let content = "";
+  if (data.output) {
+    for (const item of data.output) {
+      if (item.type === "message" && item.content) {
+        for (const block of item.content) {
+          if (block.type === "output_text") {
+            content = block.text?.trim() || "";
+          }
+        }
+      }
+    }
+  }
+
+  if (!content) {
+    throw new Error("No content in Grok response");
+  }
+
+  // Strip markdown code fences if present
+  content = content.replace(/^```json\s*/i, "").replace(/```\s*$/, "").trim();
 
   try {
-    // Try to parse JSON response
     const parsed = JSON.parse(content);
     return { subject: parsed.subject, body: parsed.body };
   } catch {
-    // Fallback: extract subject from first line, rest is body
     const lines = content.split("\n");
     return {
       subject: lines[0].replace(/^subject:\s*/i, "").trim(),
@@ -168,7 +194,6 @@ ${body}
   return mime;
 }
 
-// Base64url encode (Gmail API requirement)
 function base64urlEncode(str: string): string {
   const encoder = new TextEncoder();
   const data = encoder.encode(str);
@@ -184,7 +209,6 @@ function base64urlEncode(str: string): string {
     base64 += i + 1 < len ? chars[((b & 15) << 2) | (c >> 6)] : "=";
     base64 += i + 2 < len ? chars[c & 63] : "=";
   }
-  // Convert to base64url
   return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
@@ -225,6 +249,7 @@ interface UserContext {
   user_id: string;
   current_time: string;
   day_of_week: string;
+  location: string;
   today_tasks: Array<{ task: string; checked: boolean; age_hours: number }>;
   tomorrow_tasks: string[];
   someday_tasks: string[];
@@ -242,12 +267,10 @@ interface UserContext {
 async function getUserContext(
   supabase: ReturnType<typeof createClient>,
   userId: string,
-  settings: { name: string; email: string; timezone: string }
+  settings: { name: string; email: string; timezone: string; location?: string }
 ): Promise<UserContext> {
   const now = new Date();
-  const userTz = settings.timezone;
 
-  // Fetch all tasks for both profiles
   const { data: allTasks } = await supabase
     .from("tasks")
     .select("*")
@@ -255,7 +278,6 @@ async function getUserContext(
 
   const tasks = allTasks || [];
 
-  // Today's tasks
   const todayTasks = tasks.filter((t: Record<string, unknown>) => t.section === "today");
   const tomorrowTasks = tasks.filter((t: Record<string, unknown>) => t.section === "tomorrow");
   const somedayTasks = tasks.filter((t: Record<string, unknown>) => t.section === "someday");
@@ -268,11 +290,8 @@ async function getUserContext(
 
   const completedToday = todayTasks.filter((t: Record<string, unknown>) => t.completed).length;
   const pendingToday = todayTasks.filter((t: Record<string, unknown>) => !t.completed).length;
-
-  // Stale tasks (24+ hours old, not completed)
   const staleTasks = todayFormatted.filter((t) => !t.checked && t.age_hours >= 24);
 
-  // Wins this week
   const weekAgo = new Date(now);
   weekAgo.setDate(weekAgo.getDate() - 7);
   const { count: winsThisWeek } = await supabase
@@ -281,13 +300,11 @@ async function getUserContext(
     .eq("user_id", userId)
     .gte("completed_at", weekAgo.toISOString());
 
-  // Total wins
   const { count: winsTotal } = await supabase
     .from("wins")
     .select("*", { count: "exact", head: true })
     .eq("user_id", userId);
 
-  // Last app open
   const { data: userSettings } = await supabase
     .from("user_settings")
     .select("last_app_open")
@@ -305,6 +322,7 @@ async function getUserContext(
     user_id: userId,
     current_time: now.toISOString(),
     day_of_week: days[now.getDay()],
+    location: settings.location || "",
     today_tasks: todayFormatted,
     tomorrow_tasks: tomorrowTasks.map((t: Record<string, unknown>) => t.title as string),
     someday_tasks: somedayTasks.map((t: Record<string, unknown>) => t.title as string),
@@ -316,8 +334,17 @@ async function getUserContext(
     days_inactive: daysInactive,
     wins_this_week: winsThisWeek || 0,
     wins_total: winsTotal || 0,
-    timezone: userTz,
+    timezone: settings.timezone,
   };
+}
+
+// ============================================================
+// LOCATION/WEATHER CONTEXT HELPER
+// ============================================================
+
+function getLocationContext(ctx: UserContext): string {
+  if (!ctx.location) return "";
+  return `\n- User's location: ${ctx.location} (use web search to check current weather there and weave it in naturally if relevant — don't make it the focus, just a brief aside)`;
 }
 
 // ============================================================
@@ -325,6 +352,8 @@ async function getUserContext(
 // ============================================================
 
 function getMorningPrompt(ctx: UserContext): string | null {
+  const loc = getLocationContext(ctx);
+
   if (ctx.total_tasks_today === 0) {
     return `Job: Empty Today List
 
@@ -332,7 +361,7 @@ Context:
 - Today's tasks: none
 - Tomorrow's tasks: ${JSON.stringify(ctx.tomorrow_tasks)}
 - Someday tasks: ${JSON.stringify(ctx.someday_tasks)}
-- Day: ${ctx.day_of_week}
+- Day: ${ctx.day_of_week}${loc}
 
 Task: User has nothing in their Today list. Write an email that checks in — did they forget to add tasks? Are they intentionally chilling? Mention they could pull something from Someday or plan for Tomorrow. Keep it light, not guilt-trippy. A little roast is okay.
 
@@ -345,7 +374,7 @@ Output: JSON with "subject" and "body" keys.`;
 Context:
 - Today's tasks: ${JSON.stringify(ctx.today_tasks)}
 - Total: ${ctx.total_tasks_today}
-- Day: ${ctx.day_of_week}
+- Day: ${ctx.day_of_week}${loc}
 
 Task: User has a lot on their plate. Write an email that acknowledges this, then suggest a logical order to tackle the tasks. Look for tasks that can be batched together. Add a witty comment. Don't be preachy about productivity.
 
@@ -357,7 +386,7 @@ Output: JSON with "subject" and "body" keys.`;
 Context:
 - Today's tasks: ${JSON.stringify(ctx.today_tasks)}
 - Total: ${ctx.total_tasks_today}
-- Day: ${ctx.day_of_week}
+- Day: ${ctx.day_of_week}${loc}
 
 Task: Write a short morning email listing today's tasks. Give one quick tip on where to start or how to approach the day. Keep it casual and energizing without being cheesy.
 
@@ -365,7 +394,8 @@ Output: JSON with "subject" and "body" keys.`;
 }
 
 function getMiddayPrompt(ctx: UserContext): string | null {
-  if (ctx.pending_today === 0) return null; // Skip if nothing pending
+  if (ctx.pending_today === 0) return null;
+  const loc = getLocationContext(ctx);
 
   const pendingTasks = ctx.today_tasks.filter((t) => !t.checked);
   const oldest = pendingTasks.reduce((a, b) => (a.age_hours > b.age_hours ? a : b), pendingTasks[0]);
@@ -376,7 +406,7 @@ Context:
 - Completed today: ${ctx.completed_today}
 - Still pending: ${ctx.pending_today}
 - Pending tasks: ${JSON.stringify(pendingTasks)}
-- Oldest pending task: "${oldest.task}" (${oldest.age_hours} hours old)
+- Oldest pending task: "${oldest.task}" (${oldest.age_hours} hours old)${loc}
 
 Task: It's midday. Write a short check-in email about their progress. Mention what's done and what's left. If a task has been sitting for hours, call it out with a light roast. Nudge them to keep going.
 
@@ -452,13 +482,14 @@ Output: JSON with "subject" and "body" keys.`;
 }
 
 function getFridayPrompt(ctx: UserContext): string {
+  const loc = getLocationContext(ctx);
   const pending = ctx.today_tasks.filter((t) => !t.checked);
   return `Job: Friday Wind Down
 
 Context:
 - Tasks completed this week: ${ctx.wins_this_week}
 - Tasks still pending: ${ctx.pending_today}
-- Pending list: ${JSON.stringify(pending.map((t) => t.task))}
+- Pending list: ${JSON.stringify(pending.map((t) => t.task))}${loc}
 
 Task: It's Friday evening. Write a week-closing email. Mention how many tasks they completed this week (or roast them if it's low). Tell them to take a break, ask if they have weekend plans or are winging it. Keep it casual and friendly — like a friend texting before the weekend.
 
@@ -466,12 +497,13 @@ Output: JSON with "subject" and "body" keys.`;
 }
 
 function getSundayPrompt(ctx: UserContext): string {
+  const loc = getLocationContext(ctx);
   return `Job: Weekly Life Check-in
 
 Context:
 - Week's wins: ${ctx.wins_this_week}
 - Current pending: ${ctx.pending_today}
-- Day: Sunday evening
+- Day: Sunday evening${loc}
 
 Task: This is NOT about tasks. Write a life check-in email. Ask reflective questions — how are they actually doing, not just productivity-wise. What went well, what drained them, are they resting or just existing. Keep it thoughtful but casual. No action required. Like a friend checking in on their mental state.
 
@@ -492,7 +524,7 @@ function getUserLocalHour(timezone: string): number {
     });
     return parseInt(formatter.format(now), 10);
   } catch {
-    return new Date().getUTCHours(); // fallback
+    return new Date().getUTCHours();
   }
 }
 
@@ -517,9 +549,8 @@ async function wasEmailSentToday(
   jobType: string,
   timezone: string
 ): Promise<boolean> {
-  // Check if this job was already sent today in user's timezone
   const now = new Date();
-  const formatter = new Intl.DateTimeFormat("en-CA", { timeZone: timezone }); // YYYY-MM-DD format
+  const formatter = new Intl.DateTimeFormat("en-CA", { timeZone: timezone });
   const todayStr = formatter.format(now);
 
   const { data } = await supabase
@@ -547,15 +578,21 @@ async function logEmail(
   });
 }
 
+// Determine if this job should use web search (for weather)
+function shouldUseSearch(jobType: string, location: string): boolean {
+  if (!location) return false;
+  // Use search for morning, midday, friday, sunday — where weather is relevant
+  return ["morning", "midday", "friday", "sunday"].includes(jobType);
+}
+
 async function processJob(
   supabase: ReturnType<typeof createClient>,
   userId: string,
-  settings: { name: string; email: string; timezone: string },
+  settings: { name: string; email: string; timezone: string; location?: string },
   jobType: string,
   prompt: string
 ) {
   try {
-    // Check if already sent today
     const alreadySent = await wasEmailSentToday(supabase, userId, jobType, settings.timezone);
     if (alreadySent) {
       console.log(`Skipping ${jobType} for ${userId} - already sent today`);
@@ -563,7 +600,8 @@ async function processJob(
     }
 
     const ctx = await getUserContext(supabase, userId, settings);
-    const { subject, body } = await callGrok(prompt, ctx);
+    const useSearch = shouldUseSearch(jobType, ctx.location);
+    const { subject, body } = await callGrok(prompt, ctx, useSearch);
 
     const sent = await sendEmail(settings.email, subject, body);
     if (sent) {
@@ -576,7 +614,6 @@ async function processJob(
 }
 
 async function handleScheduledJob(supabase: ReturnType<typeof createClient>, jobType: string) {
-  // Get all users with Happy enabled
   const { data: users, error } = await supabase
     .from("happy_settings")
     .select("*")
@@ -591,51 +628,50 @@ async function handleScheduledJob(supabase: ReturnType<typeof createClient>, job
     const tz = user.timezone || "America/New_York";
     const hour = getUserLocalHour(tz);
     const day = getUserLocalDay(tz);
-    const ctx = await getUserContext(supabase, user.user_id, {
+    const settingsObj = {
       name: user.name,
       email: user.email,
       timezone: tz,
-    });
+      location: user.location || "",
+    };
+    const ctx = await getUserContext(supabase, user.user_id, settingsObj);
 
     if (jobType === "morning" && hour === 8) {
       const prompt = getMorningPrompt(ctx);
-      if (prompt) await processJob(supabase, user.user_id, user, "morning", prompt);
+      if (prompt) await processJob(supabase, user.user_id, settingsObj, "morning", prompt);
     }
 
     if (jobType === "midday" && hour === 14) {
       const prompt = getMiddayPrompt(ctx);
-      // Edge case: skip midday if all tasks done (celebration instead)
       if (prompt && ctx.pending_today > 0) {
-        await processJob(supabase, user.user_id, user, "midday", prompt);
+        await processJob(supabase, user.user_id, settingsObj, "midday", prompt);
       }
     }
 
     if (jobType === "evening" && hour === 20) {
       const prompt = getEveningPrompt(ctx);
-      if (prompt) await processJob(supabase, user.user_id, user, "evening", prompt);
+      if (prompt) await processJob(supabase, user.user_id, settingsObj, "evening", prompt);
     }
 
     if (jobType === "friday" && day === 5 && hour === 18) {
       const prompt = getFridayPrompt(ctx);
-      await processJob(supabase, user.user_id, user, "friday", prompt);
+      await processJob(supabase, user.user_id, settingsObj, "friday", prompt);
     }
 
     if (jobType === "sunday" && day === 0 && hour === 19) {
       const prompt = getSundayPrompt(ctx);
-      await processJob(supabase, user.user_id, user, "sunday", prompt);
+      await processJob(supabase, user.user_id, settingsObj, "sunday", prompt);
     }
 
     if (jobType === "hourly_check") {
-      // Stale task alert (once per day max)
       const stalePrompt = getStaleTaskPrompt(ctx);
       if (stalePrompt) {
-        await processJob(supabase, user.user_id, user, "stale_task", stalePrompt);
+        await processJob(supabase, user.user_id, settingsObj, "stale_task", stalePrompt);
       }
 
-      // Inactivity ping (once per day max)
       const inactivityPrompt = getInactivityPrompt(ctx);
       if (inactivityPrompt) {
-        await processJob(supabase, user.user_id, user, "inactivity", inactivityPrompt);
+        await processJob(supabase, user.user_id, settingsObj, "inactivity", inactivityPrompt);
       }
     }
   }
@@ -655,18 +691,25 @@ async function handleEventTrigger(
 
   if (!settings) return;
 
-  const ctx = await getUserContext(supabase, userId, {
+  const settingsObj = {
     name: settings.name,
     email: settings.email,
     timezone: settings.timezone || "America/New_York",
-  });
+    location: settings.location || "",
+  };
+  const ctx = await getUserContext(supabase, userId, settingsObj);
 
   if (jobType === "celebration") {
-    // Only trigger if truly all done
     if (ctx.pending_today === 0 && ctx.completed_today > 0) {
       const prompt = getCelebrationPrompt(ctx);
-      await processJob(supabase, userId, settings, "celebration", prompt);
+      await processJob(supabase, userId, settingsObj, "celebration", prompt);
     }
+  }
+
+  // Allow testing any job type via event trigger
+  if (jobType === "test_morning") {
+    const prompt = getMorningPrompt(ctx);
+    if (prompt) await processJob(supabase, userId, settingsObj, "morning", prompt);
   }
 }
 
@@ -675,7 +718,6 @@ async function handleEventTrigger(
 // ============================================================
 
 Deno.serve(async (req: Request) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -688,10 +730,8 @@ Deno.serve(async (req: Request) => {
     console.log(`Happy job received: ${job_type}${user_id ? ` for user ${user_id}` : ""}`);
 
     if (user_id) {
-      // Event-triggered (from frontend)
       await handleEventTrigger(supabase, job_type, user_id);
     } else {
-      // Scheduled (from cron)
       await handleScheduledJob(supabase, job_type);
     }
 
