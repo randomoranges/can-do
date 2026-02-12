@@ -11,9 +11,10 @@ const corsHeaders = {
 
 const GROK_API_URL = "https://api.x.ai/v1/chat/completions";
 const GROK_MODEL = "grok-3-mini-fast";
-const RESEND_API_URL = "https://api.resend.com/emails";
+const GMAIL_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const GMAIL_SEND_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
 const APP_URL = Deno.env.get("APP_URL") || "https://do-it-app.vercel.app";
-const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "happy@updates.yourdomain.com";
+const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "randomoranges.apps@gmail.com";
 const FROM_NAME = "Happy";
 
 const SYSTEM_PROMPT = `You are Happy, an AI accountability assistant for a personal to-do app called DoIt.
@@ -99,14 +100,39 @@ async function callGrok(prompt: string, context: Record<string, unknown>): Promi
 }
 
 // ============================================================
-// RESEND EMAIL
+// GMAIL API EMAIL
 // ============================================================
 
-async function sendEmail(to: string, subject: string, body: string): Promise<boolean> {
-  const resendApiKey = Deno.env.get("RESEND_API_KEY");
-  if (!resendApiKey) throw new Error("RESEND_API_KEY not set");
+async function getGmailAccessToken(): Promise<string> {
+  const clientId = Deno.env.get("GMAIL_CLIENT_ID");
+  const clientSecret = Deno.env.get("GMAIL_CLIENT_SECRET");
+  const refreshToken = Deno.env.get("GMAIL_REFRESH_TOKEN");
 
-  // Build HTML email with footer link
+  if (!clientId || !clientSecret || !refreshToken) {
+    throw new Error("Gmail OAuth credentials not set (GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN)");
+  }
+
+  const response = await fetch(GMAIL_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+      grant_type: "refresh_token",
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Gmail token refresh failed: ${response.status} - ${err}`);
+  }
+
+  const data = await response.json();
+  return data.access_token;
+}
+
+function buildMimeMessage(to: string, subject: string, body: string): string {
   const htmlBody = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; color: #333;">
       <div style="white-space: pre-line; font-size: 15px; line-height: 1.6;">
@@ -118,27 +144,75 @@ ${body}
     </div>
   `.trim();
 
-  const response = await fetch(RESEND_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${resendApiKey}`,
-    },
-    body: JSON.stringify({
-      from: `${FROM_NAME} <${FROM_EMAIL}>`,
-      to: [to],
-      subject,
-      html: htmlBody,
-      text: `${body}\n\n---\nOpen DoIt: ${APP_URL}`,
-    }),
-  });
+  const boundary = "boundary_" + Date.now();
+  const mime = [
+    `From: ${FROM_NAME} <${FROM_EMAIL}>`,
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    `MIME-Version: 1.0`,
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    ``,
+    `--${boundary}`,
+    `Content-Type: text/plain; charset="UTF-8"`,
+    ``,
+    `${body}\n\n---\nOpen DoIt: ${APP_URL}`,
+    ``,
+    `--${boundary}`,
+    `Content-Type: text/html; charset="UTF-8"`,
+    ``,
+    htmlBody,
+    ``,
+    `--${boundary}--`,
+  ].join("\r\n");
 
-  if (!response.ok) {
-    const err = await response.text();
-    console.error(`Resend error: ${response.status} - ${err}`);
+  return mime;
+}
+
+// Base64url encode (Gmail API requirement)
+function base64urlEncode(str: string): string {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(str);
+  let base64 = "";
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  const len = data.length;
+  for (let i = 0; i < len; i += 3) {
+    const a = data[i];
+    const b = i + 1 < len ? data[i + 1] : 0;
+    const c = i + 2 < len ? data[i + 2] : 0;
+    base64 += chars[a >> 2];
+    base64 += chars[((a & 3) << 4) | (b >> 4)];
+    base64 += i + 1 < len ? chars[((b & 15) << 2) | (c >> 6)] : "=";
+    base64 += i + 2 < len ? chars[c & 63] : "=";
+  }
+  // Convert to base64url
+  return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+async function sendEmail(to: string, subject: string, body: string): Promise<boolean> {
+  try {
+    const accessToken = await getGmailAccessToken();
+    const mime = buildMimeMessage(to, subject, body);
+    const raw = base64urlEncode(mime);
+
+    const response = await fetch(GMAIL_SEND_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ raw }),
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      console.error(`Gmail send error: ${response.status} - ${err}`);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error(`Gmail send failed:`, err);
     return false;
   }
-  return true;
 }
 
 // ============================================================
