@@ -10,7 +10,7 @@ const corsHeaders = {
 // ============================================================
 
 const GROK_RESPONSES_URL = "https://api.x.ai/v1/responses";
-const GROK_MODEL = "grok-3-mini";
+const GROK_MODEL = "grok-4-1-fast-reasoning";
 const GMAIL_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GMAIL_SEND_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
 const APP_URL = Deno.env.get("APP_URL") || "https://do-it-app.vercel.app";
