@@ -714,6 +714,54 @@ async function handleEventTrigger(
 }
 
 // ============================================================
+// MIDNIGHT TASK ROLLOVER
+// ============================================================
+
+async function handleMidnightRollover(supabase: ReturnType<typeof createClient>) {
+  // Get ALL users (not just Happy-enabled — task rollover should work for everyone)
+  const { data: allUsers, error } = await supabase.auth.admin.listUsers();
+  if (error || !allUsers?.users?.length) {
+    console.log("No users found for rollover:", error?.message);
+    return;
+  }
+
+  // Also get timezone info from happy_settings for users who have it
+  const { data: happyUsers } = await supabase
+    .from("happy_settings")
+    .select("user_id, timezone");
+  const tzMap = new Map((happyUsers || []).map((u: Record<string, string>) => [u.user_id, u.timezone]));
+
+  for (const user of allUsers.users) {
+    const tz = tzMap.get(user.id) || "America/New_York";
+    const hour = getUserLocalHour(tz);
+
+    // Only rollover if it's midnight (0) in user's timezone
+    if (hour !== 0) continue;
+
+    const { data: tomorrowTasks, error: fetchErr } = await supabase
+      .from("tasks")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("section", "tomorrow")
+      .eq("completed", false);
+
+    if (fetchErr || !tomorrowTasks?.length) continue;
+
+    const ids = tomorrowTasks.map((t: Record<string, string>) => t.id);
+    const { error: updateErr } = await supabase
+      .from("tasks")
+      .update({ section: "today", updated_at: new Date().toISOString() })
+      .in("id", ids);
+
+    if (!updateErr) {
+      console.log(`Rolled over ${ids.length} tomorrow→today tasks for user ${user.id}`);
+    } else {
+      console.error(`Rollover error for ${user.id}:`, updateErr.message);
+    }
+  }
+}
+
+// ============================================================
 // MAIN HANDLER
 // ============================================================
 
@@ -729,7 +777,9 @@ Deno.serve(async (req: Request) => {
 
     console.log(`Happy job received: ${job_type}${user_id ? ` for user ${user_id}` : ""}`);
 
-    if (user_id) {
+    if (job_type === "midnight_rollover") {
+      await handleMidnightRollover(supabase);
+    } else if (user_id) {
       await handleEventTrigger(supabase, job_type, user_id);
     } else {
       await handleScheduledJob(supabase, job_type);
