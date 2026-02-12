@@ -401,12 +401,16 @@ const SettingsModal = ({
 }) => {
   const [happyEmail, setHappyEmail] = useState(happySettings?.email || '');
   const [happyName, setHappyName] = useState(happySettings?.name || '');
+  const [happyTimezone, setHappyTimezone] = useState(happySettings?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+  const [happyLocation, setHappyLocation] = useState(happySettings?.location || '');
   const [happyDirty, setHappyDirty] = useState(false);
 
   useEffect(() => {
     if (happySettings) {
       setHappyEmail(happySettings.email || '');
       setHappyName(happySettings.name || '');
+      setHappyTimezone(happySettings.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+      setHappyLocation(happySettings.location || '');
       setHappyDirty(false);
     }
   }, [happySettings]);
@@ -603,10 +607,41 @@ const SettingsModal = ({
                       onChange={(e) => { setHappyEmail(e.target.value); setHappyDirty(true); }}
                     />
                   </div>
+                  <div className="happy-field">
+                    <label className="happy-field-label">Timezone</label>
+                    <select
+                      className="happy-input happy-select"
+                      value={happyTimezone}
+                      onChange={(e) => { setHappyTimezone(e.target.value); setHappyDirty(true); }}
+                    >
+                      {[
+                        'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+                        'America/Anchorage', 'Pacific/Honolulu', 'America/Toronto', 'America/Vancouver',
+                        'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Europe/Moscow',
+                        'Asia/Dubai', 'Asia/Kolkata', 'Asia/Shanghai', 'Asia/Tokyo',
+                        'Asia/Singapore', 'Asia/Bangkok', 'Australia/Sydney', 'Australia/Melbourne',
+                        'Pacific/Auckland', 'Africa/Cairo', 'Africa/Lagos', 'America/Sao_Paulo',
+                        'America/Mexico_City', 'Asia/Seoul', 'Asia/Hong_Kong', 'Asia/Jakarta',
+                      ].map(tz => (
+                        <option key={tz} value={tz}>{tz.replace(/_/g, ' ')}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="happy-field">
+                    <label className="happy-field-label">Location</label>
+                    <input
+                      type="text"
+                      className="happy-input"
+                      placeholder="City, Country (e.g. Mumbai, India)"
+                      value={happyLocation}
+                      onChange={(e) => { setHappyLocation(e.target.value); setHappyDirty(true); }}
+                    />
+                    <span className="happy-field-hint">For weather-aware emails</span>
+                  </div>
                   {happyDirty && happyEmail && (
                     <button
                       className="happy-save-btn"
-                      onClick={() => { onHappySave(happyName, happyEmail); setHappyDirty(false); }}
+                      onClick={() => { onHappySave(happyName, happyEmail, happyTimezone, happyLocation); setHappyDirty(false); }}
                     >
                       Save
                     </button>
@@ -1660,7 +1695,7 @@ function App() {
     const newEnabled = !happySettings?.enabled;
 
     if (!happySettings?.id) {
-      // First time enabling - create with user's email
+      // First time enabling - create with user's email and detected timezone
       const { data, error } = await supabase
         .from('happy_settings')
         .insert({
@@ -1668,6 +1703,7 @@ function App() {
           enabled: true,
           name: user?.name || 'Friend',
           email: user?.email || '',
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         })
         .select()
         .single();
@@ -1692,11 +1728,11 @@ function App() {
     }
   };
 
-  const handleHappySave = async (name, email) => {
+  const handleHappySave = async (name, email, timezone, location) => {
     if (!happySettings?.id) return;
     const { data, error } = await supabase
       .from('happy_settings')
-      .update({ name, email, updated_at: new Date().toISOString() })
+      .update({ name, email, timezone, location, updated_at: new Date().toISOString() })
       .eq('id', happySettings.id)
       .select()
       .single();
