@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import "./App.css";
 import { Toaster, toast } from "sonner";
-import { Settings, ArrowLeft, Check, Trash2, X, Sun, Moon, Monitor, LogOut, User, Mail, ToggleLeft, ToggleRight } from "lucide-react";
+import { Settings, ArrowLeft, Check, Trash2, X, Sun, Moon, Monitor, LogOut, User, Mail, ToggleLeft, ToggleRight, Calendar, Unlink } from "lucide-react";
 import confetti from "canvas-confetti";
 import { supabase } from "./supabaseClient";
 
@@ -397,7 +397,10 @@ const SettingsModal = ({
   onLogout,
   happySettings,
   onHappyToggle,
-  onHappySave
+  onHappySave,
+  calendarAccounts,
+  onConnectCalendar,
+  onDisconnectCalendar
 }) => {
   const [happyEmail, setHappyEmail] = useState(happySettings?.email || '');
   const [happyName, setHappyName] = useState(happySettings?.name || '');
@@ -648,6 +651,53 @@ const SettingsModal = ({
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Google Calendar Section */}
+          {user && !isGuest && (
+            <div className="settings-section gcal-section">
+              <div className="gcal-header">
+                <div className="gcal-label">
+                  <Calendar size={18} />
+                  <span>Calendar</span>
+                </div>
+              </div>
+              <p className="gcal-description">
+                Connect Google Calendar so Happy can see your schedule and give smarter suggestions.
+              </p>
+              <div className="gcal-profiles">
+                {['personal', 'work'].map(profile => {
+                  const account = calendarAccounts?.find(a => a.profile === profile);
+                  return (
+                    <div key={profile} className="gcal-profile-row">
+                      <div className="gcal-profile-info">
+                        <div className={`profile-indicator ${profile}`} />
+                        <span className="gcal-profile-name">{profile}</span>
+                        {account && (
+                          <span className="gcal-email">{account.google_email}</span>
+                        )}
+                      </div>
+                      {account ? (
+                        <button
+                          className="gcal-disconnect-btn"
+                          onClick={() => onDisconnectCalendar(profile)}
+                        >
+                          <Unlink size={14} />
+                          <span>Disconnect</span>
+                        </button>
+                      ) : (
+                        <button
+                          className="gcal-connect-btn"
+                          onClick={() => onConnectCalendar(profile)}
+                        >
+                          Connect
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 
@@ -1426,6 +1476,9 @@ function App() {
   // Happy - AI email assistant settings
   const [happySettings, setHappySettings] = useState(null);
 
+  // Google Calendar accounts
+  const [calendarAccounts, setCalendarAccounts] = useState([]);
+
   // ============================================================
   // SUPABASE AUTH
   // ============================================================
@@ -1774,6 +1827,87 @@ function App() {
     }
   }, [authState, happySettings]);
 
+  // ============================================================
+  // GOOGLE CALENDAR
+  // ============================================================
+
+  const fetchCalendarAccounts = useCallback(async () => {
+    if (authState !== 'authenticated') return;
+    try {
+      const userId = await getCurrentUserId();
+      if (!userId) return;
+      const { data } = await supabase
+        .from('google_calendar_accounts')
+        .select('id, profile, google_email, created_at')
+        .eq('user_id', userId);
+      setCalendarAccounts(data || []);
+    } catch {
+      setCalendarAccounts([]);
+    }
+  }, [authState]);
+
+  useEffect(() => {
+    if (authState === 'authenticated') {
+      fetchCalendarAccounts();
+    }
+  }, [authState, fetchCalendarAccounts]);
+
+  const handleConnectCalendar = async (profile) => {
+    if (authState !== 'authenticated') return;
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
+      const resp = await fetch(`${backendUrl}/api/gcal/connect/${profile}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await resp.json();
+      if (data.auth_url) {
+        window.location.href = data.auth_url;
+      } else {
+        toast.error('Failed to start calendar connection');
+      }
+    } catch {
+      toast.error('Failed to connect calendar');
+    }
+  };
+
+  const handleDisconnectCalendar = async (profile) => {
+    if (authState !== 'authenticated') return;
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
+      await fetch(`${backendUrl}/api/gcal/${profile}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      setCalendarAccounts(prev => prev.filter(a => a.profile !== profile));
+      toast.success(`Calendar disconnected for ${profile}`);
+    } catch {
+      toast.error('Failed to disconnect calendar');
+    }
+  };
+
+  // Handle gcal OAuth callback redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const gcalConnected = params.get('gcal_connected');
+    const gcalError = params.get('gcal_error');
+    if (gcalConnected) {
+      toast.success(`Google Calendar connected for ${gcalConnected}!`);
+      fetchCalendarAccounts();
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (gcalError) {
+      toast.error(`Calendar connection failed: ${gcalError}`);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [fetchCalendarAccounts]);
+
+  // ============================================================
+  // TASKS
+  // ============================================================
+
   const fetchTasks = useCallback(async (profile) => {
     if (!profile) return;
 
@@ -2071,6 +2205,9 @@ function App() {
         happySettings={happySettings}
         onHappyToggle={handleHappyToggle}
         onHappySave={handleHappySave}
+        calendarAccounts={calendarAccounts}
+        onConnectCalendar={handleConnectCalendar}
+        onDisconnectCalendar={handleDisconnectCalendar}
       />
     </div>
   );
