@@ -65,6 +65,21 @@ create policy "Service can insert email logs"
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
 
+-- Config table for storing credentials (no superuser ALTER DATABASE needed)
+create table if not exists app_config (
+  key text primary key,
+  value text not null
+);
+
+-- Lock down: RLS with no policies = no client access, only security definer functions
+alter table app_config enable row level security;
+
+-- IMPORTANT: After creating the table, insert your actual values:
+-- insert into app_config (key, value) values
+--   ('supabase_url', 'https://YOUR_PROJECT.supabase.co'),
+--   ('service_role_key', 'eyJ...YOUR_ACTUAL_KEY...')
+-- on conflict (key) do update set value = excluded.value;
+
 -- Helper function to invoke the Happy edge function
 create or replace function invoke_happy_job(job_type text)
 returns void as $$
@@ -72,9 +87,9 @@ declare
   edge_function_url text;
   service_role_key text;
 begin
-  -- These will be set via Supabase secrets/config
-  edge_function_url := current_setting('app.settings.supabase_url', true) || '/functions/v1/happy';
-  service_role_key := current_setting('app.settings.service_role_key', true);
+  select value into edge_function_url from app_config where key = 'supabase_url';
+  edge_function_url := edge_function_url || '/functions/v1/happy';
+  select value into service_role_key from app_config where key = 'service_role_key';
 
   perform net.http_post(
     url := edge_function_url,
