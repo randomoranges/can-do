@@ -880,7 +880,7 @@ async function handleMidnightRollover(supabase: ReturnType<typeof createClient>)
   const tzMap = new Map((happyUsers || []).map((u: Record<string, string>) => [u.user_id, u.timezone]));
 
   for (const user of allUsers.users) {
-    const tz = tzMap.get(user.id) || "America/New_York";
+    const tz = (tzMap.get(user.id) as string) || "America/New_York";
     const hour = getUserLocalHour(tz);
 
     // Only rollover if it's midnight (0) in user's timezone
