@@ -1855,18 +1855,26 @@ function App() {
   const handleConnectCalendar = async (profile) => {
     if (authState !== 'authenticated') return;
     try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
-      const resp = await fetch(`${backendUrl}/api/gcal/connect/${profile}`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      const data = await resp.json();
-      if (data.auth_url) {
-        window.location.href = data.auth_url;
-      } else {
-        toast.error('Failed to start calendar connection');
+      const userId = await getCurrentUserId();
+      if (!userId) return;
+      const gcalClientId = import.meta.env.VITE_GCAL_CLIENT_ID;
+      if (!gcalClientId) {
+        toast.error('Google Calendar not configured');
+        return;
       }
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hyjkrbnsftuouaitbdkr.supabase.co';
+      const redirectUri = `${supabaseUrl}/functions/v1/gcal-callback`;
+      const state = `${userId}:${profile}`;
+      const params = new URLSearchParams({
+        client_id: gcalClientId,
+        redirect_uri: redirectUri,
+        response_type: 'code',
+        scope: 'https://www.googleapis.com/auth/calendar.readonly',
+        access_type: 'offline',
+        prompt: 'consent',
+        state: state,
+      });
+      window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
     } catch {
       toast.error('Failed to connect calendar');
     }
@@ -1875,13 +1883,13 @@ function App() {
   const handleDisconnectCalendar = async (profile) => {
     if (authState !== 'authenticated') return;
     try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
-      await fetch(`${backendUrl}/api/gcal/${profile}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
+      const userId = await getCurrentUserId();
+      if (!userId) return;
+      await supabase
+        .from('google_calendar_accounts')
+        .delete()
+        .eq('user_id', userId)
+        .eq('profile', profile);
       setCalendarAccounts(prev => prev.filter(a => a.profile !== profile));
       toast.success(`Calendar disconnected for ${profile}`);
     } catch {
