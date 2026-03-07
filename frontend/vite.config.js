@@ -12,7 +12,13 @@ export default defineConfig({
       '.emergentagent.com',
       '.preview.emergentagent.com',
       'taskmaster-1575.preview.emergentagent.com'
-    ]
+    ],
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      }
+    }
   },
   preview: {
     port: 3000,
