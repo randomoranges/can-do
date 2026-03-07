@@ -1862,8 +1862,7 @@ function App() {
         toast.error('Google Calendar not configured');
         return;
       }
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hyjkrbnsftuouaitbdkr.supabase.co';
-      const redirectUri = `${supabaseUrl}/functions/v1/gcal-callback`;
+      const redirectUri = `${window.location.origin}/api/gcal/callback`;
       const state = `${userId}:${profile}`;
       const params = new URLSearchParams({
         client_id: gcalClientId,
