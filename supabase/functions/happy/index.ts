@@ -19,6 +19,8 @@ const FROM_NAME = "Happy";
 
 const SYSTEM_PROMPT = `You are Happy, an AI accountability assistant for a personal to-do app called DoIt.
 
+The app has two profiles: Personal (for life stuff) and Work (for job stuff). When tasks span both profiles, always organize your email by profile so the user knows what's where.
+
 Personality:
 - Friendly but real
 - Casual, not corporate
@@ -33,6 +35,8 @@ Rules:
 - Sign off every email with "— Happy"
 - Never use bullet points excessively
 - Sound like a friend texting, not a productivity app
+- When tasks exist in both profiles, show them grouped (e.g. "personal: ..., work: ...") — don't just dump a flat list
+- If you spot optimization opportunities (tasks that can be batched, one profile being overloaded, tasks that should be moved), mention it briefly — 1-2 sentences, not a productivity lecture
 - If user's location is provided and weather info is available, weave in a brief weather mention naturally (e.g. "it's gonna rain so maybe knock out indoor tasks first" or "nice day out, don't waste it staring at your screen all day")
 - Never make weather the main topic — it's a side note, not a weather report
 
@@ -243,6 +247,23 @@ async function sendEmail(to: string, subject: string, body: string): Promise<boo
 // DATA FETCHING
 // ============================================================
 
+interface TaskItem {
+  task: string;
+  checked: boolean;
+  age_hours: number;
+  profile: string;
+}
+
+interface ProfileTasks {
+  today: TaskItem[];
+  tomorrow: string[];
+  someday: string[];
+  completed_today: number;
+  pending_today: number;
+  total_today: number;
+  stale: Array<{ task: string; age_hours: number }>;
+}
+
 interface UserContext {
   user_name: string;
   user_email: string;
@@ -250,18 +271,47 @@ interface UserContext {
   current_time: string;
   day_of_week: string;
   location: string;
-  today_tasks: Array<{ task: string; checked: boolean; age_hours: number }>;
+  // All tasks (flat, for backward compat)
+  today_tasks: TaskItem[];
   tomorrow_tasks: string[];
   someday_tasks: string[];
   completed_today: number;
   pending_today: number;
   total_tasks_today: number;
   stale_tasks: Array<{ task: string; age_hours: number }>;
+  // Profile-separated tasks
+  personal: ProfileTasks;
+  work: ProfileTasks;
+  has_both_profiles: boolean;
   last_app_open: string;
   days_inactive: number;
   wins_this_week: number;
   wins_total: number;
   timezone: string;
+}
+
+function buildProfileTasks(tasks: Record<string, unknown>[], profile: string, now: Date): ProfileTasks {
+  const profileTasks = tasks.filter((t) => t.profile === profile);
+  const today = profileTasks.filter((t) => t.section === "today");
+  const tomorrow = profileTasks.filter((t) => t.section === "tomorrow");
+  const someday = profileTasks.filter((t) => t.section === "someday");
+
+  const todayFormatted = today.map((t) => ({
+    task: t.title as string,
+    checked: t.completed as boolean,
+    age_hours: Math.round((now.getTime() - new Date(t.created_at as string).getTime()) / (1000 * 60 * 60)),
+    profile,
+  }));
+
+  return {
+    today: todayFormatted,
+    tomorrow: tomorrow.map((t) => t.title as string),
+    someday: someday.map((t) => t.title as string),
+    completed_today: today.filter((t) => t.completed).length,
+    pending_today: today.filter((t) => !t.completed).length,
+    total_today: today.length,
+    stale: todayFormatted.filter((t) => !t.checked && t.age_hours >= 24),
+  };
 }
 
 async function getUserContext(
@@ -278,6 +328,13 @@ async function getUserContext(
 
   const tasks = allTasks || [];
 
+  // Build profile-separated data
+  const personal = buildProfileTasks(tasks, "personal", now);
+  const work = buildProfileTasks(tasks, "work", now);
+  const hasBoth = personal.total_today + work.total_today > 0 &&
+    personal.total_today > 0 && work.total_today > 0;
+
+  // Flat lists (all profiles combined)
   const todayTasks = tasks.filter((t: Record<string, unknown>) => t.section === "today");
   const tomorrowTasks = tasks.filter((t: Record<string, unknown>) => t.section === "tomorrow");
   const somedayTasks = tasks.filter((t: Record<string, unknown>) => t.section === "someday");
@@ -286,6 +343,7 @@ async function getUserContext(
     task: t.title as string,
     checked: t.completed as boolean,
     age_hours: Math.round((now.getTime() - new Date(t.created_at as string).getTime()) / (1000 * 60 * 60)),
+    profile: (t.profile as string) || "personal",
   }));
 
   const completedToday = todayTasks.filter((t: Record<string, unknown>) => t.completed).length;
@@ -330,6 +388,9 @@ async function getUserContext(
     pending_today: pendingToday,
     total_tasks_today: todayTasks.length,
     stale_tasks: staleTasks,
+    personal,
+    work,
+    has_both_profiles: hasBoth,
     last_app_open: lastOpen.toISOString(),
     days_inactive: daysInactive,
     wins_this_week: winsThisWeek || 0,
@@ -348,8 +409,42 @@ function getLocationContext(ctx: UserContext): string {
 }
 
 // ============================================================
-// JOB PROMPTS
+// JOB PROMPTS (Profile-aware with optimization suggestions)
 // ============================================================
+
+function formatProfileSection(ctx: UserContext): string {
+  const sections: string[] = [];
+
+  if (ctx.personal.total_today > 0 || ctx.personal.tomorrow.length > 0) {
+    sections.push(`[Personal]
+  Today (${ctx.personal.total_today}): ${JSON.stringify(ctx.personal.today.map(t => ({ task: t.task, done: t.checked })))}
+  Tomorrow: ${JSON.stringify(ctx.personal.tomorrow)}
+  Someday: ${JSON.stringify(ctx.personal.someday)}
+  Done: ${ctx.personal.completed_today}/${ctx.personal.total_today}`);
+  }
+
+  if (ctx.work.total_today > 0 || ctx.work.tomorrow.length > 0) {
+    sections.push(`[Work]
+  Today (${ctx.work.total_today}): ${JSON.stringify(ctx.work.today.map(t => ({ task: t.task, done: t.checked })))}
+  Tomorrow: ${JSON.stringify(ctx.work.tomorrow)}
+  Someday: ${JSON.stringify(ctx.work.someday)}
+  Done: ${ctx.work.completed_today}/${ctx.work.total_today}`);
+  }
+
+  if (sections.length === 0) return "- No tasks in any profile";
+  return sections.join("\n\n");
+}
+
+function getProfileOptimizationHint(ctx: UserContext): string {
+  if (!ctx.has_both_profiles) return "";
+  return `
+Optimization guidance (weave these naturally, don't list them as bullet points):
+- If personal and work tasks overlap in theme (e.g. emails, errands, calls), suggest batching them together
+- If one profile is heavy and the other is light, suggest tackling the lighter one first for momentum
+- If work tasks are time-sensitive, suggest front-loading those
+- Note any tasks that could be moved to tomorrow or someday to reduce overload
+- Keep optimization suggestions brief and conversational — 1-2 sentences max, not a lecture`;
+}
 
 function getMorningPrompt(ctx: UserContext): string | null {
   const loc = getLocationContext(ctx);
@@ -358,12 +453,10 @@ function getMorningPrompt(ctx: UserContext): string | null {
     return `Job: Empty Today List
 
 Context:
-- Today's tasks: none
-- Tomorrow's tasks: ${JSON.stringify(ctx.tomorrow_tasks)}
-- Someday tasks: ${JSON.stringify(ctx.someday_tasks)}
-- Day: ${ctx.day_of_week}${loc}
+- Day: ${ctx.day_of_week}
+${formatProfileSection(ctx)}${loc}
 
-Task: User has nothing in their Today list. Write an email that checks in — did they forget to add tasks? Are they intentionally chilling? Mention they could pull something from Someday or plan for Tomorrow. Keep it light, not guilt-trippy. A little roast is okay.
+Task: User has nothing in their Today list across both profiles. Write an email that checks in — did they forget to add tasks? Are they intentionally chilling? If they have tasks in Tomorrow or Someday, mention they could pull something over. Keep it light, not guilt-trippy. A little roast is okay. If they have tasks in one profile but not the other, note that.
 
 Output: JSON with "subject" and "body" keys.`;
   }
@@ -372,11 +465,12 @@ Output: JSON with "subject" and "body" keys.`;
     return `Job: Planning Assist
 
 Context:
-- Today's tasks: ${JSON.stringify(ctx.today_tasks)}
-- Total: ${ctx.total_tasks_today}
-- Day: ${ctx.day_of_week}${loc}
+- Day: ${ctx.day_of_week}
+- Total tasks today: ${ctx.total_tasks_today}
+${formatProfileSection(ctx)}${loc}
+${getProfileOptimizationHint(ctx)}
 
-Task: User has a lot on their plate. Write an email that acknowledges this, then suggest a logical order to tackle the tasks. Look for tasks that can be batched together. Add a witty comment. Don't be preachy about productivity.
+Task: User has a lot on their plate. Write an email that shows tasks grouped by profile (personal vs work). Suggest a smart order to tackle them — look for tasks that can be batched across profiles (e.g. all emails at once, all errands together). If one profile is overloaded, suggest moving lower-priority items to tomorrow. Add a witty comment. Don't be preachy.
 
 Output: JSON with "subject" and "body" keys.`;
   }
@@ -384,11 +478,12 @@ Output: JSON with "subject" and "body" keys.`;
   return `Job: Morning Briefing
 
 Context:
-- Today's tasks: ${JSON.stringify(ctx.today_tasks)}
-- Total: ${ctx.total_tasks_today}
-- Day: ${ctx.day_of_week}${loc}
+- Day: ${ctx.day_of_week}
+- Total tasks today: ${ctx.total_tasks_today}
+${formatProfileSection(ctx)}${loc}
+${getProfileOptimizationHint(ctx)}
 
-Task: Write a short morning email listing today's tasks. Give one quick tip on where to start or how to approach the day. Keep it casual and energizing without being cheesy.
+Task: Write a short morning email showing today's tasks organized by profile (personal/work). Give one quick tip on where to start or what to tackle first. If they have tasks in both profiles, briefly suggest an efficient order. Keep it casual and energizing.
 
 Output: JSON with "subject" and "body" keys.`;
 }
@@ -397,18 +492,23 @@ function getMiddayPrompt(ctx: UserContext): string | null {
   if (ctx.pending_today === 0) return null;
   const loc = getLocationContext(ctx);
 
-  const pendingTasks = ctx.today_tasks.filter((t) => !t.checked);
-  const oldest = pendingTasks.reduce((a, b) => (a.age_hours > b.age_hours ? a : b), pendingTasks[0]);
+  const personalPending = ctx.personal.today.filter(t => !t.checked);
+  const workPending = ctx.work.today.filter(t => !t.checked);
+  const allPending = ctx.today_tasks.filter((t) => !t.checked);
+  const oldest = allPending.reduce((a, b) => (a.age_hours > b.age_hours ? a : b), allPending[0]);
 
   return `Job: Midday Check-in
 
 Context:
-- Completed today: ${ctx.completed_today}
-- Still pending: ${ctx.pending_today}
-- Pending tasks: ${JSON.stringify(pendingTasks)}
-- Oldest pending task: "${oldest.task}" (${oldest.age_hours} hours old)${loc}
+- Overall: ${ctx.completed_today} done, ${ctx.pending_today} remaining
+- Personal pending (${personalPending.length}): ${JSON.stringify(personalPending.map(t => t.task))}
+- Work pending (${workPending.length}): ${JSON.stringify(workPending.map(t => t.task))}
+- Personal done: ${ctx.personal.completed_today}/${ctx.personal.total_today}
+- Work done: ${ctx.work.completed_today}/${ctx.work.total_today}
+- Oldest pending: "${oldest.task}" [${oldest.profile}] (${oldest.age_hours}h old)${loc}
+${getProfileOptimizationHint(ctx)}
 
-Task: It's midday. Write a short check-in email about their progress. Mention what's done and what's left. If a task has been sitting for hours, call it out with a light roast. Nudge them to keep going.
+Task: Midday check-in. Show progress per profile — which profile is ahead, which is lagging. If a task has been sitting for hours, call it out with a light roast (mention which profile it's in). If one profile is done but the other isn't, acknowledge the win and nudge on the rest. Suggest any quick wins they can knock out.
 
 Output: JSON with "subject" and "body" keys.`;
 }
@@ -416,33 +516,43 @@ Output: JSON with "subject" and "body" keys.`;
 function getEveningPrompt(ctx: UserContext): string | null {
   if (ctx.total_tasks_today === 0) return null;
 
-  const completed = ctx.today_tasks.filter((t) => t.checked);
-  const pending = ctx.today_tasks.filter((t) => !t.checked);
+  const personalCompleted = ctx.personal.today.filter(t => t.checked).map(t => t.task);
+  const personalPending = ctx.personal.today.filter(t => !t.checked).map(t => t.task);
+  const workCompleted = ctx.work.today.filter(t => t.checked).map(t => t.task);
+  const workPending = ctx.work.today.filter(t => !t.checked).map(t => t.task);
 
   return `Job: End of Day Recap
 
 Context:
-- Completed: ${ctx.completed_today} tasks
-- Missed/Pending: ${ctx.pending_today} tasks
-- Completed list: ${JSON.stringify(completed.map((t) => t.task))}
-- Pending list: ${JSON.stringify(pending.map((t) => t.task))}
 - Day: ${ctx.day_of_week}
+- Overall: ${ctx.completed_today} completed, ${ctx.pending_today} missed
 
-Task: Write an evening recap email. Summarize what got done and what didn't. If they crushed it, hype them up. If they slacked, call it out gently. Mention any carryover tasks. Keep it short, end on a "rest up" note.
+[Personal] ${ctx.personal.completed_today}/${ctx.personal.total_today} done
+  Completed: ${JSON.stringify(personalCompleted)}
+  Missed: ${JSON.stringify(personalPending)}
+
+[Work] ${ctx.work.completed_today}/${ctx.work.total_today} done
+  Completed: ${JSON.stringify(workCompleted)}
+  Missed: ${JSON.stringify(workPending)}
+
+Task: Write an evening recap showing results per profile. Which profile got more done? If they crushed one but not the other, note it. If missed tasks in one profile could be moved to someday, suggest it. Keep it short. End on a "rest up" note. If everything is done, just celebrate.
 
 Output: JSON with "subject" and "body" keys.`;
 }
 
 function getCelebrationPrompt(ctx: UserContext): string {
-  const completed = ctx.today_tasks.filter((t) => t.checked);
+  const personalDone = ctx.personal.today.filter(t => t.checked).map(t => t.task);
+  const workDone = ctx.work.today.filter(t => t.checked).map(t => t.task);
+
   return `Job: All Tasks Done Celebration
 
 Context:
-- Tasks completed: ${ctx.completed_today}
-- Tasks list: ${JSON.stringify(completed.map((t) => t.task))}
+- Total completed: ${ctx.completed_today}
+- Personal tasks done: ${JSON.stringify(personalDone)}
+- Work tasks done: ${JSON.stringify(workDone)}
 - Wins this week: ${ctx.wins_this_week}
 
-Task: User completed everything in their Today list. Write a short hype email celebrating this. Keep it cool, not over-the-top. Maybe a light joke about them actually getting stuff done. Encourage them to chill now.
+Task: User completed everything across both profiles. Write a short hype email. If they had tasks in both personal and work, acknowledge they handled both sides of their life. Keep it cool, not over-the-top. Maybe a light joke. Encourage them to chill now.
 
 Output: JSON with "subject" and "body" keys.`;
 }
@@ -450,18 +560,21 @@ Output: JSON with "subject" and "body" keys.`;
 function getStaleTaskPrompt(ctx: UserContext): string | null {
   if (ctx.stale_tasks.length === 0) return null;
 
+  // Group stale tasks by profile
+  const personalStale = ctx.personal.stale;
+  const workStale = ctx.work.stale;
   const main = ctx.stale_tasks[0];
-  const others = ctx.stale_tasks.slice(1);
+  const mainProfile = ctx.today_tasks.find(t => t.task === main.task)?.profile || "unknown";
   const ageDays = Math.floor(main.age_hours / 24);
 
   return `Job: Stale Task Alert
 
 Context:
-- Stale task: "${main.task}"
-- Age: ${main.age_hours} hours (${ageDays} days)
-- Other stale tasks: ${JSON.stringify(others.map((t) => t.task))}
+- Oldest stale task: "${main.task}" [${mainProfile}] — ${main.age_hours}h (${ageDays} days)
+- Personal stale tasks: ${JSON.stringify(personalStale.map(t => t.task))}
+- Work stale tasks: ${JSON.stringify(workStale.map(t => t.task))}
 
-Task: This task has been sitting untouched for over a day. Write an email calling this out. Give options: do it, move it to someday, or delete it. Be real — if they keep avoiding it, maybe they don't actually want to do it. Roast them a little but keep it friendly.
+Task: These tasks have been sitting untouched. Write an email calling out the worst offender (mention which profile it's in). If stale tasks are spread across profiles, note the pattern. Give options: do it now, move to someday, or just delete it. If they keep avoiding it, maybe they don't actually want to do it. Roast gently.
 
 Output: JSON with "subject" and "body" keys.`;
 }
@@ -473,25 +586,29 @@ function getInactivityPrompt(ctx: UserContext): string | null {
 
 Context:
 - Days since last app open: ${ctx.days_inactive}
-- Pending tasks in Today: ${ctx.pending_today}
-- Tasks list: ${JSON.stringify(ctx.today_tasks)}
+- Personal pending: ${ctx.personal.pending_today} tasks (${JSON.stringify(ctx.personal.today.filter(t => !t.checked).map(t => t.task))})
+- Work pending: ${ctx.work.pending_today} tasks (${JSON.stringify(ctx.work.today.filter(t => !t.checked).map(t => t.task))})
+- Total pending: ${ctx.pending_today}
 
-Task: User has gone MIA. Write an email checking if they're alive. Mention their pending tasks are still waiting. Light guilt trip, friendly roast. Don't be aggressive, but nudge them to come back.
+Task: User has gone MIA. Write an email checking if they're alive. Mention tasks are piling up across their profiles. If work tasks are waiting, add urgency. If personal tasks are waiting, be more chill about it. Light guilt trip, friendly roast. Don't be aggressive.
 
 Output: JSON with "subject" and "body" keys.`;
 }
 
 function getFridayPrompt(ctx: UserContext): string {
   const loc = getLocationContext(ctx);
-  const pending = ctx.today_tasks.filter((t) => !t.checked);
+  const personalPending = ctx.personal.today.filter(t => !t.checked).map(t => t.task);
+  const workPending = ctx.work.today.filter(t => !t.checked).map(t => t.task);
+
   return `Job: Friday Wind Down
 
 Context:
 - Tasks completed this week: ${ctx.wins_this_week}
-- Tasks still pending: ${ctx.pending_today}
-- Pending list: ${JSON.stringify(pending.map((t) => t.task))}${loc}
+- Personal still pending: ${JSON.stringify(personalPending)}
+- Work still pending: ${JSON.stringify(workPending)}
+- Total pending: ${ctx.pending_today}${loc}
 
-Task: It's Friday evening. Write a week-closing email. Mention how many tasks they completed this week (or roast them if it's low). Tell them to take a break, ask if they have weekend plans or are winging it. Keep it casual and friendly — like a friend texting before the weekend.
+Task: It's Friday evening. Write a week-closing email. Mention how many tasks they got done this week. If work tasks are still pending, ask if they can wait till Monday or need to be handled. If personal tasks remain, suggest tackling them over the weekend or moving them. Keep it casual, like a friend texting before the weekend.
 
 Output: JSON with "subject" and "body" keys.`;
 }
@@ -502,10 +619,11 @@ function getSundayPrompt(ctx: UserContext): string {
 
 Context:
 - Week's wins: ${ctx.wins_this_week}
-- Current pending: ${ctx.pending_today}
+- Personal pending: ${ctx.personal.pending_today}
+- Work pending: ${ctx.work.pending_today}
 - Day: Sunday evening${loc}
 
-Task: This is NOT about tasks. Write a life check-in email. Ask reflective questions — how are they actually doing, not just productivity-wise. What went well, what drained them, are they resting or just existing. Keep it thoughtful but casual. No action required. Like a friend checking in on their mental state.
+Task: This is NOT about tasks. Write a life check-in email. Ask reflective questions — how are they actually doing, not just productivity-wise. If they've been heavy on work tasks all week, ask if they're making time for personal stuff. If personal tasks are piling up, ask if they're okay. What went well, what drained them. Keep it thoughtful but casual. Like a friend checking in.
 
 Output: JSON with "subject" and "body" keys.`;
 }
@@ -714,6 +832,54 @@ async function handleEventTrigger(
 }
 
 // ============================================================
+// MIDNIGHT TASK ROLLOVER
+// ============================================================
+
+async function handleMidnightRollover(supabase: ReturnType<typeof createClient>) {
+  // Get ALL users (not just Happy-enabled — task rollover should work for everyone)
+  const { data: allUsers, error } = await supabase.auth.admin.listUsers();
+  if (error || !allUsers?.users?.length) {
+    console.log("No users found for rollover:", error?.message);
+    return;
+  }
+
+  // Also get timezone info from happy_settings for users who have it
+  const { data: happyUsers } = await supabase
+    .from("happy_settings")
+    .select("user_id, timezone");
+  const tzMap = new Map((happyUsers || []).map((u: Record<string, string>) => [u.user_id, u.timezone]));
+
+  for (const user of allUsers.users) {
+    const tz = tzMap.get(user.id) || "America/New_York";
+    const hour = getUserLocalHour(tz);
+
+    // Only rollover if it's midnight (0) in user's timezone
+    if (hour !== 0) continue;
+
+    const { data: tomorrowTasks, error: fetchErr } = await supabase
+      .from("tasks")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("section", "tomorrow")
+      .eq("completed", false);
+
+    if (fetchErr || !tomorrowTasks?.length) continue;
+
+    const ids = tomorrowTasks.map((t: Record<string, string>) => t.id);
+    const { error: updateErr } = await supabase
+      .from("tasks")
+      .update({ section: "today", updated_at: new Date().toISOString() })
+      .in("id", ids);
+
+    if (!updateErr) {
+      console.log(`Rolled over ${ids.length} tomorrow→today tasks for user ${user.id}`);
+    } else {
+      console.error(`Rollover error for ${user.id}:`, updateErr.message);
+    }
+  }
+}
+
+// ============================================================
 // MAIN HANDLER
 // ============================================================
 
@@ -729,7 +895,9 @@ Deno.serve(async (req: Request) => {
 
     console.log(`Happy job received: ${job_type}${user_id ? ` for user ${user_id}` : ""}`);
 
-    if (user_id) {
+    if (job_type === "midnight_rollover") {
+      await handleMidnightRollover(supabase);
+    } else if (user_id) {
       await handleEventTrigger(supabase, job_type, user_id);
     } else {
       await handleScheduledJob(supabase, job_type);
