@@ -1967,6 +1967,16 @@ function App() {
 
   useEffect(() => {
     fetchCalendarEvents();
+    // Poll for new calendar events every 5 minutes
+    const interval = setInterval(fetchCalendarEvents, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [fetchCalendarEvents]);
+
+  // Also refetch calendar events when the window regains focus (e.g. user switches back from Google Calendar)
+  useEffect(() => {
+    const onFocus = () => fetchCalendarEvents();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
   }, [fetchCalendarEvents]);
 
   // Handle gcal OAuth callback redirect
