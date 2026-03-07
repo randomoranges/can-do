@@ -798,7 +798,8 @@ async function handleScheduledJob(supabase: ReturnType<typeof createClient>, job
 async function handleEventTrigger(
   supabase: ReturnType<typeof createClient>,
   jobType: string,
-  userId: string
+  userId: string,
+  force = false
 ) {
   const { data: settings } = await supabase
     .from("happy_settings")
@@ -822,12 +823,41 @@ async function handleEventTrigger(
       const prompt = getCelebrationPrompt(ctx);
       await processJob(supabase, userId, settingsObj, "celebration", prompt);
     }
+    return;
   }
 
-  // Allow testing any job type via event trigger
-  if (jobType === "test_morning") {
-    const prompt = getMorningPrompt(ctx);
-    if (prompt) await processJob(supabase, userId, settingsObj, "morning", prompt);
+  // When called with user_id (event trigger / force test), bypass hour/day gates
+  // and run the requested job type directly
+  let prompt: string | null = null;
+  switch (jobType) {
+    case "morning":
+    case "test_morning":
+      prompt = getMorningPrompt(ctx);
+      if (prompt) await processJob(supabase, userId, settingsObj, "morning", prompt);
+      break;
+    case "midday":
+      prompt = getMiddayPrompt(ctx);
+      if (prompt) await processJob(supabase, userId, settingsObj, "midday", prompt);
+      break;
+    case "evening":
+      prompt = getEveningPrompt(ctx);
+      if (prompt) await processJob(supabase, userId, settingsObj, "evening", prompt);
+      break;
+    case "friday":
+      prompt = getFridayPrompt(ctx);
+      await processJob(supabase, userId, settingsObj, "friday", prompt);
+      break;
+    case "sunday":
+      prompt = getSundayPrompt(ctx);
+      await processJob(supabase, userId, settingsObj, "sunday", prompt);
+      break;
+    case "hourly_check": {
+      const stalePrompt = getStaleTaskPrompt(ctx);
+      if (stalePrompt) await processJob(supabase, userId, settingsObj, "stale_task", stalePrompt);
+      const inactivityPrompt = getInactivityPrompt(ctx);
+      if (inactivityPrompt) await processJob(supabase, userId, settingsObj, "inactivity", inactivityPrompt);
+      break;
+    }
   }
 }
 
@@ -891,14 +921,14 @@ Deno.serve(async (req: Request) => {
   try {
     const supabase = getSupabaseAdmin();
     const body = await req.json();
-    const { job_type, user_id } = body;
+    const { job_type, user_id, force } = body;
 
-    console.log(`Happy job received: ${job_type}${user_id ? ` for user ${user_id}` : ""}`);
+    console.log(`Happy job received: ${job_type}${user_id ? ` for user ${user_id}` : ""}${force ? " (forced)" : ""}`);
 
     if (job_type === "midnight_rollover") {
       await handleMidnightRollover(supabase);
     } else if (user_id) {
-      await handleEventTrigger(supabase, job_type, user_id);
+      await handleEventTrigger(supabase, job_type, user_id, !!force);
     } else {
       await handleScheduledJob(supabase, job_type);
     }
