@@ -58,6 +58,9 @@ chainlit.md
 .ipynb_checkpoints/
 .ac
 
+# Supabase
+supabase/.temp/
+
 # Deployment
 .vercel
 
