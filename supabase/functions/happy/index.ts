@@ -254,6 +254,17 @@ interface TaskItem {
   profile: string;
 }
 
+interface CalendarEvent {
+  title: string;
+  start: string;
+  end: string;
+  all_day: boolean;
+  type: string; // event, focus_time, out_of_office, reminder
+  description: string;
+  location: string;
+  calendar_profile: string;
+}
+
 interface ProfileTasks {
   today: TaskItem[];
   tomorrow: string[];
@@ -262,6 +273,8 @@ interface ProfileTasks {
   pending_today: number;
   total_today: number;
   stale: Array<{ task: string; age_hours: number }>;
+  calendar_today: CalendarEvent[];
+  calendar_tomorrow: CalendarEvent[];
 }
 
 interface UserContext {
@@ -288,6 +301,157 @@ interface UserContext {
   wins_this_week: number;
   wins_total: number;
   timezone: string;
+  // Calendar events (all profiles combined)
+  calendar_today: CalendarEvent[];
+  calendar_tomorrow: CalendarEvent[];
+  has_calendar: boolean;
+}
+
+// ============================================================
+// GOOGLE CALENDAR HELPERS
+// ============================================================
+
+async function refreshGcalToken(
+  supabase: ReturnType<typeof createClient>,
+  account: Record<string, unknown>
+): Promise<string> {
+  const clientId = Deno.env.get("GCAL_CLIENT_ID");
+  const clientSecret = Deno.env.get("GCAL_CLIENT_SECRET");
+  if (!clientId || !clientSecret) return account.access_token as string;
+
+  const resp = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: account.refresh_token as string,
+      grant_type: "refresh_token",
+    }),
+  });
+
+  if (!resp.ok) {
+    console.error("Failed to refresh gcal token:", await resp.text());
+    return account.access_token as string;
+  }
+
+  const tokens = await resp.json();
+  const newToken = tokens.access_token;
+  const expiresAt = new Date(Date.now() + (tokens.expires_in || 3600) * 1000).toISOString();
+
+  await supabase
+    .from("google_calendar_accounts")
+    .update({ access_token: newToken, token_expires_at: expiresAt, updated_at: new Date().toISOString() })
+    .eq("id", account.id);
+
+  return newToken;
+}
+
+async function fetchCalendarEvents(
+  supabase: ReturnType<typeof createClient>,
+  account: Record<string, unknown>,
+  timeMin: string,
+  timeMax: string,
+  timezone: string
+): Promise<CalendarEvent[]> {
+  let accessToken = account.access_token as string;
+  const expiresAt = new Date(account.token_expires_at as string);
+
+  if (Date.now() >= expiresAt.getTime() - 5 * 60 * 1000) {
+    accessToken = await refreshGcalToken(supabase, account);
+  }
+
+  const calendarId = (account.calendar_id as string) || "primary";
+  const params = new URLSearchParams({
+    timeMin,
+    timeMax,
+    singleEvents: "true",
+    orderBy: "startTime",
+    maxResults: "50",
+    timeZone: timezone,
+  });
+
+  const resp = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+
+  if (!resp.ok) {
+    console.error(`Failed to fetch gcal events for ${account.google_email}:`, await resp.text());
+    return [];
+  }
+
+  const data = await resp.json();
+  const profile = account.profile as string;
+
+  return (data.items || []).map((item: Record<string, unknown>) => {
+    const start = (item.start || {}) as Record<string, string>;
+    const end = (item.end || {}) as Record<string, string>;
+
+    let eventType = "event";
+    if (item.eventType === "focusTime") eventType = "focus_time";
+    else if (item.eventType === "outOfOffice") eventType = "out_of_office";
+    else if (item.transparency === "transparent") eventType = "reminder";
+
+    return {
+      title: (item.summary as string) || "(No title)",
+      start: start.dateTime || start.date || "",
+      end: end.dateTime || end.date || "",
+      all_day: "date" in start && !("dateTime" in start),
+      type: eventType,
+      description: ((item.description as string) || "").slice(0, 200),
+      location: (item.location as string) || "",
+      calendar_profile: profile,
+    };
+  });
+}
+
+async function getUserCalendarEvents(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  timezone: string
+): Promise<{ today: CalendarEvent[]; tomorrow: CalendarEvent[] }> {
+  const { data: accounts } = await supabase
+    .from("google_calendar_accounts")
+    .select("*")
+    .eq("user_id", userId);
+
+  if (!accounts || accounts.length === 0) {
+    return { today: [], tomorrow: [] };
+  }
+
+  const now = new Date();
+  // Calculate today/tomorrow boundaries in user's timezone
+  const formatter = new Intl.DateTimeFormat("en-CA", { timeZone: timezone });
+  const todayStr = formatter.format(now);
+  const tomorrowDate = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const tomorrowStr = formatter.format(tomorrowDate);
+  const dayAfterDate = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
+  const dayAfterStr = formatter.format(dayAfterDate);
+
+  const todayMin = `${todayStr}T00:00:00`;
+  const todayMax = `${tomorrowStr}T00:00:00`;
+  const tomorrowMin = `${tomorrowStr}T00:00:00`;
+  const tomorrowMax = `${dayAfterStr}T00:00:00`;
+
+  let allToday: CalendarEvent[] = [];
+  let allTomorrow: CalendarEvent[] = [];
+
+  for (const account of accounts) {
+    const [todayEvents, tomorrowEvents] = await Promise.all([
+      fetchCalendarEvents(supabase, account, todayMin, todayMax, timezone),
+      fetchCalendarEvents(supabase, account, tomorrowMin, tomorrowMax, timezone),
+    ]);
+    allToday = allToday.concat(todayEvents);
+    allTomorrow = allTomorrow.concat(tomorrowEvents);
+  }
+
+  // Sort by start time
+  const sortByStart = (a: CalendarEvent, b: CalendarEvent) => a.start.localeCompare(b.start);
+  allToday.sort(sortByStart);
+  allTomorrow.sort(sortByStart);
+
+  return { today: allToday, tomorrow: allTomorrow };
 }
 
 function buildProfileTasks(tasks: Record<string, unknown>[], profile: string, now: Date): ProfileTasks {
@@ -311,6 +475,8 @@ function buildProfileTasks(tasks: Record<string, unknown>[], profile: string, no
     pending_today: today.filter((t) => !t.completed).length,
     total_today: today.length,
     stale: todayFormatted.filter((t) => !t.checked && t.age_hours >= 24),
+    calendar_today: [],
+    calendar_tomorrow: [],
   };
 }
 
@@ -374,6 +540,25 @@ async function getUserContext(
 
   const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+  // Fetch Google Calendar events
+  let calendarData = { today: [] as CalendarEvent[], tomorrow: [] as CalendarEvent[] };
+  try {
+    calendarData = await getUserCalendarEvents(supabase, userId, settings.timezone);
+  } catch (err) {
+    console.error("Failed to fetch calendar events:", err);
+  }
+
+  // Assign calendar events to profiles
+  const personalCalToday = calendarData.today.filter(e => e.calendar_profile === "personal");
+  const personalCalTomorrow = calendarData.tomorrow.filter(e => e.calendar_profile === "personal");
+  const workCalToday = calendarData.today.filter(e => e.calendar_profile === "work");
+  const workCalTomorrow = calendarData.tomorrow.filter(e => e.calendar_profile === "work");
+
+  personal.calendar_today = personalCalToday;
+  personal.calendar_tomorrow = personalCalTomorrow;
+  work.calendar_today = workCalToday;
+  work.calendar_tomorrow = workCalTomorrow;
+
   return {
     user_name: settings.name,
     user_email: settings.email,
@@ -396,6 +581,9 @@ async function getUserContext(
     wins_this_week: winsThisWeek || 0,
     wins_total: winsTotal || 0,
     timezone: settings.timezone,
+    calendar_today: calendarData.today,
+    calendar_tomorrow: calendarData.tomorrow,
+    has_calendar: calendarData.today.length > 0 || calendarData.tomorrow.length > 0,
   };
 }
 
@@ -880,7 +1068,7 @@ async function handleMidnightRollover(supabase: ReturnType<typeof createClient>)
   const tzMap = new Map((happyUsers || []).map((u: Record<string, string>) => [u.user_id, u.timezone]));
 
   for (const user of allUsers.users) {
-    const tz = tzMap.get(user.id) || "America/New_York";
+    const tz = (tzMap.get(user.id) as string) || "America/New_York";
     const hour = getUserLocalHour(tz);
 
     // Only rollover if it's midnight (0) in user's timezone

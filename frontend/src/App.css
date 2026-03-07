@@ -1474,6 +1474,115 @@ html.dark .action-btn.delete:hover {
     margin-top: 0.15rem;
 }
 
+/* Google Calendar Section */
+.gcal-section {
+    margin-top: 0.5rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.gcal-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.gcal-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: 'League Spartan', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.gcal-description {
+    font-size: 0.78rem;
+    color: var(--text-tertiary);
+    line-height: 1.4;
+    margin-bottom: 0.75rem;
+}
+
+.gcal-profiles {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.gcal-profile-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    background: var(--bg-primary);
+}
+
+.gcal-profile-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    flex: 1;
+}
+
+.gcal-profile-name {
+    font-family: 'League Spartan', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-transform: capitalize;
+}
+
+.gcal-email {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gcal-connect-btn {
+    padding: 0.35rem 0.9rem;
+    background: #4285F4;
+    color: #fff;
+    border: none;
+    border-radius: 0.4rem;
+    font-family: 'League Spartan', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+
+.gcal-connect-btn:hover {
+    background: #3367D6;
+}
+
+.gcal-disconnect-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.35rem 0.7rem;
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 0.4rem;
+    font-family: 'League Spartan', sans-serif;
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.gcal-disconnect-btn:hover {
+    border-color: #EF4444;
+    color: #EF4444;
+}
+
 /* Logout Section */
 .logout-section {
     margin-top: 1rem;
