@@ -1221,14 +1221,40 @@ const EmptyState = ({ section, onAddClick, theme }) => {
 };
 
 // Section Screen
+// Calendar Event Item
+const CalendarEventItem = ({ event }) => {
+  const formatTime = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  };
+
+  return (
+    <div className="calendar-event-item">
+      <div className="calendar-event-dot" />
+      <div className="calendar-event-content">
+        <span className="calendar-event-title">{event.title}</span>
+        {!event.all_day && (
+          <span className="calendar-event-time">
+            {formatTime(event.start)}{event.end ? ` - ${formatTime(event.end)}` : ''}
+          </span>
+        )}
+        {event.all_day && <span className="calendar-event-time">All day</span>}
+        {event.location && <span className="calendar-event-location">{event.location}</span>}
+      </div>
+    </div>
+  );
+};
+
 const SectionScreen = ({
-  profile, section, tasks, onBack, onToggleTask, onEditTask, onAddTask, onClearCompleted, theme, onHappyCelebration
+  profile, section, tasks, onBack, onToggleTask, onEditTask, onAddTask, onClearCompleted, theme, onHappyCelebration, calendarEvents
 }) => {
   const config = getSectionConfig(theme, section);
   const sectionTasks = tasks.filter((t) => t.section === section);
   const incompleteTasks = sectionTasks.filter((t) => !t.completed);
   const completedTasks = sectionTasks.filter((t) => t.completed);
   const taskCount = incompleteTasks.length;
+  const sectionEvents = (section === 'today' ? calendarEvents?.today : section === 'tomorrow' ? calendarEvents?.tomorrow : []) || [];
   const allTasksCompleted = sectionTasks.length > 0 && incompleteTasks.length === 0;
   const hasNoTasks = sectionTasks.length === 0;
 
@@ -1288,6 +1314,19 @@ const SectionScreen = ({
           <span className="section-header-count">{taskCount}</span>
         </div>
       </div>
+
+      {/* Calendar Events */}
+      {sectionEvents.length > 0 && (
+        <div className="calendar-events-section">
+          <div className="calendar-events-header">
+            <Calendar size={14} />
+            <span>calendar</span>
+          </div>
+          {sectionEvents.map((event) => (
+            <CalendarEventItem key={event.id} event={event} />
+          ))}
+        </div>
+      )}
 
       {hasNoTasks ? (
         <EmptyState section={section} onAddClick={() => setAddDrawerOpen(true)} theme={theme} />
@@ -1478,6 +1517,9 @@ function App() {
 
   // Google Calendar accounts
   const [calendarAccounts, setCalendarAccounts] = useState([]);
+
+  // Google Calendar events (fetched from API)
+  const [calendarEvents, setCalendarEvents] = useState({ today: [], tomorrow: [] });
 
   // ============================================================
   // SUPABASE AUTH
@@ -1896,6 +1938,37 @@ function App() {
     }
   };
 
+  // Fetch calendar events for current profile
+  const fetchCalendarEvents = useCallback(async () => {
+    if (authState !== 'authenticated' || !currentProfile) {
+      setCalendarEvents({ today: [], tomorrow: [] });
+      return;
+    }
+    // Only fetch if user has a calendar connected for this profile
+    const hasAccount = calendarAccounts.some(a => a.profile === currentProfile);
+    if (!hasAccount) {
+      setCalendarEvents({ today: [], tomorrow: [] });
+      return;
+    }
+    try {
+      const userId = await getCurrentUserId();
+      if (!userId) return;
+      const tz = happySettings?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const params = new URLSearchParams({ user_id: userId, profile: currentProfile, timezone: tz });
+      const resp = await fetch(`/api/gcal/events?${params}`);
+      if (resp.ok) {
+        const data = await resp.json();
+        setCalendarEvents(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch calendar events:', err);
+    }
+  }, [authState, currentProfile, calendarAccounts, happySettings]);
+
+  useEffect(() => {
+    fetchCalendarEvents();
+  }, [fetchCalendarEvents]);
+
   // Handle gcal OAuth callback redirect
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -2174,6 +2247,7 @@ function App() {
           onClearCompleted={handleClearCompleted}
           theme={currentTheme}
           onHappyCelebration={triggerHappyCelebration}
+          calendarEvents={calendarEvents}
         />
       ) : (
         <ProfileScreen
