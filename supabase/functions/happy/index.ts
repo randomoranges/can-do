@@ -59,7 +59,7 @@ function getSupabaseAdmin() {
 // GROK API (Responses endpoint with web search)
 // ============================================================
 
-async function callGrok(prompt: string, context: Record<string, unknown>, useSearch = false): Promise<{ subject: string; body: string }> {
+async function callGrok(prompt: string, context: UserContext | Record<string, unknown>, useSearch = false): Promise<{ subject: string; body: string }> {
   const grokApiKey = Deno.env.get("GROK_API_KEY");
   if (!grokApiKey) throw new Error("GROK_API_KEY not set");
 
@@ -743,7 +743,7 @@ async function handleScheduledJob(supabase: ReturnType<typeof createClient>, job
   }
 
   for (const user of users) {
-    const tz = user.timezone || "America/New_York";
+    const tz = (user.timezone as string) || "America/New_York";
     const hour = getUserLocalHour(tz);
     const day = getUserLocalDay(tz);
     const settingsObj = {
