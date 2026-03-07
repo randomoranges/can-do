@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import "./App.css";
 import { Toaster, toast } from "sonner";
-import { Settings, ArrowLeft, Check, Trash2, X, Sun, Moon, Monitor, LogOut, User, Mail, ToggleLeft, ToggleRight, Calendar, Unlink } from "lucide-react";
+import { Settings, ArrowLeft, Check, Trash2, X, Sun, Moon, Monitor, LogOut, User, Mail, ToggleLeft, ToggleRight, Calendar, Unlink, RefreshCw } from "lucide-react";
 import confetti from "canvas-confetti";
 import { supabase } from "./supabaseClient";
 
@@ -1247,7 +1247,7 @@ const CalendarEventItem = ({ event }) => {
 };
 
 const SectionScreen = ({
-  profile, section, tasks, onBack, onToggleTask, onEditTask, onAddTask, onClearCompleted, theme, onHappyCelebration, calendarEvents
+  profile, section, tasks, onBack, onToggleTask, onEditTask, onAddTask, onClearCompleted, theme, onHappyCelebration, calendarEvents, onRefreshCalendar
 }) => {
   const config = getSectionConfig(theme, section);
   const sectionTasks = tasks.filter((t) => t.section === section);
@@ -1262,6 +1262,7 @@ const SectionScreen = ({
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [hasShownConfetti, setHasShownConfetti] = useState(false);
   const [touchStart, setTouchStart] = useState(null);
+  const [calSyncing, setCalSyncing] = useState(false);
   
   useEffect(() => {
     if (allTasksCompleted && !hasShownConfetti && completedTasks.length > 0) {
@@ -1321,6 +1322,20 @@ const SectionScreen = ({
           <div className="calendar-events-header">
             <Calendar size={14} />
             <span>calendar</span>
+            {onRefreshCalendar && (
+              <button
+                className="cal-sync-btn"
+                onClick={async () => {
+                  setCalSyncing(true);
+                  await onRefreshCalendar();
+                  setCalSyncing(false);
+                }}
+                disabled={calSyncing}
+                title="Sync calendar"
+              >
+                <RefreshCw size={12} className={calSyncing ? 'spinning' : ''} />
+              </button>
+            )}
           </div>
           {sectionEvents.map((event) => (
             <CalendarEventItem key={event.id} event={event} />
@@ -2258,6 +2273,7 @@ function App() {
           theme={currentTheme}
           onHappyCelebration={triggerHappyCelebration}
           calendarEvents={calendarEvents}
+          onRefreshCalendar={fetchCalendarEvents}
         />
       ) : (
         <ProfileScreen
