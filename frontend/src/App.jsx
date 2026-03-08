@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import "./App.css";
 import { Toaster, toast } from "sonner";
-import { Settings, ArrowLeft, Check, Trash2, X, Sun, Moon, Monitor, LogOut, User, Mail, ToggleLeft, ToggleRight, Calendar, Unlink } from "lucide-react";
+import { Settings, ArrowLeft, Check, Trash2, X, Sun, Moon, Monitor, LogOut, User, Mail, ToggleLeft, ToggleRight, Calendar, Unlink, RefreshCw } from "lucide-react";
 import confetti from "canvas-confetti";
 import { supabase } from "./supabaseClient";
 
@@ -1247,7 +1247,7 @@ const CalendarEventItem = ({ event }) => {
 };
 
 const SectionScreen = ({
-  profile, section, tasks, onBack, onToggleTask, onEditTask, onAddTask, onClearCompleted, theme, onHappyCelebration, calendarEvents
+  profile, section, tasks, onBack, onToggleTask, onEditTask, onAddTask, onClearCompleted, theme, onHappyCelebration, calendarEvents, onRefreshCalendar
 }) => {
   const config = getSectionConfig(theme, section);
   const sectionTasks = tasks.filter((t) => t.section === section);
@@ -1262,6 +1262,7 @@ const SectionScreen = ({
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [hasShownConfetti, setHasShownConfetti] = useState(false);
   const [touchStart, setTouchStart] = useState(null);
+  const [calSyncing, setCalSyncing] = useState(false);
   
   useEffect(() => {
     if (allTasksCompleted && !hasShownConfetti && completedTasks.length > 0) {
@@ -1321,6 +1322,20 @@ const SectionScreen = ({
           <div className="calendar-events-header">
             <Calendar size={14} />
             <span>calendar</span>
+            {onRefreshCalendar && (
+              <button
+                className="cal-sync-btn"
+                onClick={async () => {
+                  setCalSyncing(true);
+                  await onRefreshCalendar();
+                  setCalSyncing(false);
+                }}
+                disabled={calSyncing}
+                title="Sync calendar"
+              >
+                <RefreshCw size={12} className={calSyncing ? 'spinning' : ''} />
+              </button>
+            )}
           </div>
           {sectionEvents.map((event) => (
             <CalendarEventItem key={event.id} event={event} />
@@ -1951,19 +1966,20 @@ function App() {
       return;
     }
     try {
-      const userId = await getCurrentUserId();
-      if (!userId) return;
-      const tz = happySettings?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const params = new URLSearchParams({ user_id: userId, profile: currentProfile, timezone: tz });
-      const resp = await fetch(`/api/gcal/events?${params}`);
-      if (resp.ok) {
-        const data = await resp.json();
-        setCalendarEvents(data);
-      }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+      const headers = { 'Authorization': `Bearer ${session.access_token}` };
+      const [todayResp, tomorrowResp] = await Promise.all([
+        fetch(`/api/gcal/events/${currentProfile}?period=today`, { headers }),
+        fetch(`/api/gcal/events/${currentProfile}?period=tomorrow`, { headers }),
+      ]);
+      const todayEvents = todayResp.ok ? await todayResp.json() : [];
+      const tomorrowEvents = tomorrowResp.ok ? await tomorrowResp.json() : [];
+      setCalendarEvents({ today: todayEvents, tomorrow: tomorrowEvents });
     } catch (err) {
       console.error('Failed to fetch calendar events:', err);
     }
-  }, [authState, currentProfile, calendarAccounts, happySettings]);
+  }, [authState, currentProfile, calendarAccounts]);
 
   useEffect(() => {
     fetchCalendarEvents();
@@ -2258,6 +2274,7 @@ function App() {
           theme={currentTheme}
           onHappyCelebration={triggerHappyCelebration}
           calendarEvents={calendarEvents}
+          onRefreshCalendar={fetchCalendarEvents}
         />
       ) : (
         <ProfileScreen
