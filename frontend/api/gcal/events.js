@@ -5,7 +5,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { user_id, profile, timezone } = req.query;
+  const { user_id, profile, timezone, access_token } = req.query;
 
   if (!user_id || !profile) {
     return res.status(400).json({ error: 'Missing user_id or profile' });
@@ -13,14 +13,21 @@ export default async function handler(req, res) {
 
   const SUPABASE_URL = process.env.SUPABASE_URL || 'https://hyjkrbnsftuouaitbdkr.supabase.co';
   const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
   const GCAL_CLIENT_ID = process.env.GCAL_CLIENT_ID;
   const GCAL_CLIENT_SECRET = process.env.GCAL_CLIENT_SECRET;
 
-  if (!SUPABASE_SERVICE_ROLE_KEY) {
-    return res.status(500).json({ error: 'Server not configured' });
+  // Use service role key if available, otherwise use anon key with user's access token for RLS
+  let supabase;
+  if (SUPABASE_SERVICE_ROLE_KEY) {
+    supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  } else if (access_token) {
+    supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY || '', {
+      global: { headers: { Authorization: `Bearer ${access_token}` } }
+    });
+  } else {
+    return res.status(500).json({ error: 'Server not configured: missing SUPABASE_SERVICE_ROLE_KEY and no access_token provided' });
   }
-
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   try {
     // Get the calendar account for this user+profile
@@ -64,6 +71,10 @@ export default async function handler(req, res) {
           .from('google_calendar_accounts')
           .update({ access_token: accessToken, token_expires_at: newExpiresAt, updated_at: new Date().toISOString() })
           .eq('id', account.id);
+      } else {
+        const errBody = await tokenResp.text();
+        console.error('Token refresh failed:', tokenResp.status, errBody);
+        return res.status(200).json({ today: [], tomorrow: [], error: 'token_refresh_failed' });
       }
     }
 
