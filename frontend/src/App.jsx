@@ -1966,19 +1966,20 @@ function App() {
       return;
     }
     try {
-      const userId = await getCurrentUserId();
-      if (!userId) return;
-      const tz = happySettings?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const params = new URLSearchParams({ user_id: userId, profile: currentProfile, timezone: tz });
-      const resp = await fetch(`/api/gcal/events?${params}`);
-      if (resp.ok) {
-        const data = await resp.json();
-        setCalendarEvents(data);
-      }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+      const headers = { 'Authorization': `Bearer ${session.access_token}` };
+      const [todayResp, tomorrowResp] = await Promise.all([
+        fetch(`/api/gcal/events/${currentProfile}?period=today`, { headers }),
+        fetch(`/api/gcal/events/${currentProfile}?period=tomorrow`, { headers }),
+      ]);
+      const todayEvents = todayResp.ok ? await todayResp.json() : [];
+      const tomorrowEvents = tomorrowResp.ok ? await tomorrowResp.json() : [];
+      setCalendarEvents({ today: todayEvents, tomorrow: tomorrowEvents });
     } catch (err) {
       console.error('Failed to fetch calendar events:', err);
     }
-  }, [authState, currentProfile, calendarAccounts, happySettings]);
+  }, [authState, currentProfile, calendarAccounts]);
 
   useEffect(() => {
     fetchCalendarEvents();

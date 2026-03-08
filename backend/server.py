@@ -9,7 +9,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import Optional, Literal, List
 from datetime import datetime, timezone, timedelta
-from urllib.parse import urlencode
+from urllib.parse import urlencode, quote
 from supabase import create_client, Client
 
 ROOT_DIR = Path(__file__).parent
@@ -431,15 +431,23 @@ async def gcal_events(
     ).single().execute()
     user_tz = tz_result.data.get("timezone", "UTC") if tz_result.data else "UTC"
 
-    now = datetime.now(timezone.utc)
+    # Calculate time boundaries in user's timezone so "today" means the user's today
+    try:
+        import zoneinfo
+        user_zone = zoneinfo.ZoneInfo(user_tz)
+    except Exception:
+        user_zone = timezone.utc
+    now_local = datetime.now(user_zone)
+    today_start = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
     if period == "today":
-        time_min = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        time_max = time_min + timedelta(days=1)
+        time_min = today_start
+        time_max = today_start + timedelta(days=1)
     else:  # tomorrow
-        time_min = now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
-        time_max = time_min + timedelta(days=1)
+        time_min = today_start + timedelta(days=1)
+        time_max = today_start + timedelta(days=2)
 
     # Fetch events from Google Calendar API
+    calendar_id = account.get('calendar_id') or 'primary'
     params = {
         "timeMin": time_min.isoformat(),
         "timeMax": time_max.isoformat(),
@@ -451,7 +459,7 @@ async def gcal_events(
 
     async with httpx.AsyncClient() as http_client:
         resp = await http_client.get(
-            f"https://www.googleapis.com/calendar/v3/calendars/{account['calendar_id']}/events",
+            f"https://www.googleapis.com/calendar/v3/calendars/{quote(calendar_id, safe='')}/events",
             params=params,
             headers={"Authorization": f"Bearer {access_token}"},
         )
