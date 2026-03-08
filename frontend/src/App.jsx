@@ -1953,13 +1953,64 @@ function App() {
     }
   };
 
+  // Refresh a Google Calendar access token via Supabase Edge Function
+  const refreshGcalToken = useCallback(async (accountId) => {
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hyjkrbnsftuouaitbdkr.supabase.co';
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return null;
+      const resp = await fetch(`${supabaseUrl}/functions/v1/gcal-refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ account_id: accountId }),
+      });
+      if (!resp.ok) return null;
+      const data = await resp.json();
+      return data.access_token || null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // Fetch Google Calendar events directly from browser using stored token
+  const fetchGcalEvents = useCallback(async (accessToken, tz, timeMin, timeMax) => {
+    const params = new URLSearchParams({
+      timeMin: `${timeMin}T00:00:00`,
+      timeMax: `${timeMax}T00:00:00`,
+      singleEvents: 'true',
+      orderBy: 'startTime',
+      maxResults: '50',
+      timeZone: tz,
+    });
+    const resp = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    return (data.items || []).map((item) => {
+      const start = item.start || {};
+      const end = item.end || {};
+      return {
+        id: item.id,
+        title: item.summary || '(No title)',
+        start: start.dateTime || start.date || '',
+        end: end.dateTime || end.date || '',
+        all_day: 'date' in start && !('dateTime' in start),
+        location: item.location || '',
+      };
+    });
+  }, []);
+
   // Fetch calendar events for current profile
   const fetchCalendarEvents = useCallback(async () => {
     if (authState !== 'authenticated' || !currentProfile) {
       setCalendarEvents({ today: [], tomorrow: [] });
       return;
     }
-    // Only fetch if user has a calendar connected for this profile
     const hasAccount = calendarAccounts.some(a => a.profile === currentProfile);
     if (!hasAccount) {
       setCalendarEvents({ today: [], tomorrow: [] });
@@ -1967,19 +2018,66 @@ function App() {
     }
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) return;
-      const headers = { 'Authorization': `Bearer ${session.access_token}` };
-      const [todayResp, tomorrowResp] = await Promise.all([
-        fetch(`/api/gcal/events/${currentProfile}?period=today`, { headers }),
-        fetch(`/api/gcal/events/${currentProfile}?period=tomorrow`, { headers }),
+      const userId = session?.user?.id;
+      if (!userId) return;
+
+      // Get the calendar account with tokens from Supabase (RLS allows reading own rows)
+      const { data: account } = await supabase
+        .from('google_calendar_accounts')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('profile', currentProfile)
+        .single();
+
+      if (!account?.access_token) return;
+
+      const tz = happySettings?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const now = new Date();
+      const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: tz });
+      const todayStr = formatter.format(now);
+      const tomorrowDate = new Date(now.getTime() + 86400000);
+      const tomorrowStr = formatter.format(tomorrowDate);
+      const dayAfterStr = formatter.format(new Date(now.getTime() + 172800000));
+
+      let accessToken = account.access_token;
+
+      // Check if token is expired (within 5 min buffer)
+      const expiresAt = new Date(account.token_expires_at);
+      if (Date.now() >= expiresAt.getTime() - 5 * 60 * 1000) {
+        const refreshed = await refreshGcalToken(account.id);
+        if (refreshed) {
+          accessToken = refreshed;
+        } else {
+          console.error('Calendar token expired and refresh failed');
+          return;
+        }
+      }
+
+      // Fetch today and tomorrow events directly from Google Calendar API
+      let [todayEvents, tomorrowEvents] = await Promise.all([
+        fetchGcalEvents(accessToken, tz, todayStr, tomorrowStr),
+        fetchGcalEvents(accessToken, tz, tomorrowStr, dayAfterStr),
       ]);
-      const todayEvents = todayResp.ok ? await todayResp.json() : [];
-      const tomorrowEvents = tomorrowResp.ok ? await tomorrowResp.json() : [];
-      setCalendarEvents({ today: todayEvents, tomorrow: tomorrowEvents });
+
+      // If Google returns 401, try refreshing the token once
+      if (todayEvents === null || tomorrowEvents === null) {
+        const refreshed = await refreshGcalToken(account.id);
+        if (refreshed) {
+          [todayEvents, tomorrowEvents] = await Promise.all([
+            fetchGcalEvents(refreshed, tz, todayStr, tomorrowStr),
+            fetchGcalEvents(refreshed, tz, tomorrowStr, dayAfterStr),
+          ]);
+        }
+      }
+
+      setCalendarEvents({
+        today: todayEvents || [],
+        tomorrow: tomorrowEvents || [],
+      });
     } catch (err) {
       console.error('Failed to fetch calendar events:', err);
     }
-  }, [authState, currentProfile, calendarAccounts]);
+  }, [authState, currentProfile, calendarAccounts, happySettings, refreshGcalToken, fetchGcalEvents]);
 
   useEffect(() => {
     fetchCalendarEvents();
